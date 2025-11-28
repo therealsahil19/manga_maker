@@ -1,5 +1,9 @@
 import os
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add src to path if needed (though running as module is better)
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -35,7 +39,12 @@ def main():
 
         # Step 2: Architect - Get Blueprint
         print("Consulting The Architect...")
-        blueprint = architect.get_blueprint(scene_text)
+        try:
+            blueprint = architect.get_blueprint(scene_text)
+        except Exception as e:
+            print(f"Critical Error: Architect failed to generate blueprint. {e}")
+            sys.exit(1)
+
         print(f"Layout selected: {blueprint.get('layout', 'unknown')}")
 
         # Step 3: Layout Engine - Calculate Coordinates
@@ -52,7 +61,11 @@ def main():
         # If layout has 4 slots but AI returned 3 panels, we need to handle that.
         # Ideally, Architect knows the layout counts (1, 3, 4).
 
-        panel_images = artist.generate_page_panels(panels_data)
+        try:
+            panel_images = artist.generate_page_panels(panels_data)
+        except Exception as e:
+            print(f"Critical Error: Artist failed to generate images. {e}")
+            sys.exit(1)
 
         # Step 5: Typesetter - Assemble
         print("Typesetting...")
