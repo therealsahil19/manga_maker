@@ -3,7 +3,7 @@
 import { retryOperation } from './utils.js';
 
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "meta-llama/llama-3.3-70b-instruct:free";
+const MODEL = "google/gemini-2.0-flash-lite-preview-02-05:free";
 
 const SYSTEM_PROMPT = `You are 'The Architect', an expert manga layout strategist.
 Your goal is to analyze a full chapter text and split it into multiple manga pages (AT LEAST 8 PAGES).

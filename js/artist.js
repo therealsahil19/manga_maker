@@ -4,37 +4,63 @@ import { critiqueImage } from './editor.js';
 import { sleep, retryOperation } from './utils.js';
 
 const STYLE_SUFFIX = ", Seinen style, heavy cross-hatching, dramatic high contrast shadows, intricate details, manga aesthetic, black and white, masterpiece by Kentaro Miura, ink drawing";
+const FLUX_MODEL = "black-forest-labs/flux-1-schnell";
+const SDXL_MODEL = "stabilityai/stable-diffusion-xl-base-1.0";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 /**
- * Generates an image using Cloudflare Workers AI.
+ * Generates an image using OpenRouter.
  *
  * @param {string} prompt - The prompt describing the image to generate.
- * @param {string} accountId - The Cloudflare account ID.
- * @param {string} apiToken - The Cloudflare API token.
+ * @param {string} model - The model ID to use.
+ * @param {string} apiKey - The OpenRouter API key.
  * @returns {Promise<Blob>} - A promise that resolves to the generated image as a Blob.
  * @throws {Error} - Throws an error if the API request fails.
  */
-async function generateWithCloudflare(prompt, accountId, apiToken) {
-    const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0`;
+async function generateWithOpenRouter(prompt, model, apiKey) {
+    // OpenRouter Image Generation via Chat Completion API (common for some models)
+    // OR via dedicated image endpoint if available.
+    // However, most OpenRouter "image" models are accessed via the /completions or specific endpoints.
+    // Wait, OpenRouter standardizes mostly on text. For images, they map to providers.
+    // For Flux/SDXL on OpenRouter, the standard way is often using the OpenAI-compatible image generation endpoint
+    // `https://openrouter.ai/api/v1/images/generations`
+
+    // Let's try the standard OpenAI compatible image endpoint.
+    const url = "https://openrouter.ai/api/v1/images/generations";
 
     const response = await fetch(url, {
         method: "POST",
         headers: {
-            "Authorization": `Bearer ${apiToken}`,
-            "Content-Type": "application/json"
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": window.location.href,
+            "X-Title": "Manga Maker V9 Web"
         },
         body: JSON.stringify({
+            model: model,
             prompt: prompt + STYLE_SUFFIX,
-            num_steps: 20 // Default reasonable step count
+            n: 1,
+            size: "1024x1024"
         })
     });
 
     if (!response.ok) {
-        throw new Error(`Cloudflare Error: ${response.status} ${response.statusText}`);
+        throw new Error(`OpenRouter Error: ${response.status} ${response.statusText}`);
     }
 
-    // Cloudflare returns binary image data directly for this model
-    return await response.blob();
+    const data = await response.json();
+
+    if (!data.data || !data.data[0] || !data.data[0].url) {
+        throw new Error("Invalid response format from OpenRouter.");
+    }
+
+    // Fetch the image from the URL provided
+    const imageResponse = await fetch(data.data[0].url);
+    if (!imageResponse.ok) {
+        throw new Error("Failed to download generated image.");
+    }
+
+    return await imageResponse.blob();
 }
 
 /**
@@ -63,42 +89,46 @@ async function generateWithPollinations(prompt) {
  * Generates a panel, critiques it using the Editor agent, and retries generation if necessary.
  *
  * @param {string} panelDesc - The description of the panel to generate.
- * @param {string} cfAccountId - The Cloudflare account ID.
- * @param {string} cfApiToken - The Cloudflare API token.
- * @param {string} orKey - The OpenRouter API key for the critique process.
+ * @param {string} orKey - The OpenRouter API key.
  * @param {Function} logCallback - Callback function for logging progress and errors.
  * @returns {Promise<Blob|null>} - A promise that resolves to the generated image Blob, or null if generation fails completely.
  * @throws {Error} - Throws an error if all generation methods fail.
  */
-async function generatePanelWithRetry(panelDesc, cfAccountId, cfApiToken, orKey, logCallback) {
+async function generatePanelWithRetry(panelDesc, orKey, logCallback) {
     let currentPrompt = panelDesc;
     let imageBlob = null;
     let source = "";
 
     // 1. Generation Phase
     try {
-        if (cfAccountId && cfApiToken) {
-            logCallback("  > Artist: Trying Cloudflare...");
-            // Wrap in retry
-            imageBlob = await retryOperation(
-                () => generateWithCloudflare(currentPrompt, cfAccountId, cfApiToken),
-                3, 2000, logCallback
-            );
-            source = "Cloudflare";
-        } else {
-            throw new Error("Missing Cloudflare Credentials");
-        }
-    } catch (cfErr) {
-        logCallback(`  > Cloudflare failed (${cfErr.message}). Switching to Pollinations...`);
+        logCallback("  > Artist: Trying Flux (schnell)...");
+        // Try Flux
+        imageBlob = await retryOperation(
+            () => generateWithOpenRouter(currentPrompt, FLUX_MODEL, orKey),
+            2, 2000, logCallback
+        );
+        source = "Flux";
+    } catch (fluxErr) {
+        logCallback(`  > Flux failed (${fluxErr.message}). Switching to SDXL...`);
         try {
-            // Wrap in retry
+            // Try SDXL
             imageBlob = await retryOperation(
-                () => generateWithPollinations(currentPrompt),
-                3, 3000, logCallback
+                () => generateWithOpenRouter(currentPrompt, SDXL_MODEL, orKey),
+                2, 2000, logCallback
             );
-            source = "Pollinations";
-        } catch (pollErr) {
-            throw new Error(`All generation methods failed. CF: ${cfErr.message}, Poll: ${pollErr.message}`);
+            source = "SDXL";
+        } catch (sdxlErr) {
+            logCallback(`  > SDXL failed (${sdxlErr.message}). Switching to Pollinations...`);
+            try {
+                // Fallback to Pollinations
+                imageBlob = await retryOperation(
+                    () => generateWithPollinations(currentPrompt),
+                    3, 3000, logCallback
+                );
+                source = "Pollinations";
+            } catch (pollErr) {
+                throw new Error(`All generation methods failed. Flux: ${fluxErr.message}, SDXL: ${sdxlErr.message}, Poll: ${pollErr.message}`);
+            }
         }
     }
 
@@ -107,8 +137,6 @@ async function generatePanelWithRetry(panelDesc, cfAccountId, cfApiToken, orKey,
     // 2. Critique Phase (if OpenRouter Key is present)
     if (orKey) {
         logCallback("  > Editor: Critiquing image...");
-        // Critique doesn't strictly need retries as it's an LLM call, but could benefit.
-        // For now, let's keep it simple to save tokens.
         try {
             const decision = await critiqueImage(imageBlob, panelDesc, orKey);
 
@@ -117,14 +145,22 @@ async function generatePanelWithRetry(panelDesc, cfAccountId, cfApiToken, orKey,
                 logCallback("  > Artist: Retrying with improved prompt...");
 
                 try {
-                    // Retry generation with improved prompt (single attempt path for simplicity, or we could recurse)
-                    // Let's use the retry wrapper again but just 1-2 times.
-                    if (cfAccountId && cfApiToken) {
-                        imageBlob = await retryOperation(() => generateWithCloudflare(decision.improved_prompt, cfAccountId, cfApiToken), 2, 2000);
-                    } else {
-                        imageBlob = await retryOperation(() => generateWithPollinations(decision.improved_prompt), 2, 3000);
+                    // Retry using the same successful source (simplified logic: try Flux/SDXL preference again)
+                    // We will just try Flux then SDXL again, or Pollinations if those fail.
+                    // To keep it simple, we'll try Flux -> Pollinations for the retry.
+                    try {
+                        imageBlob = await retryOperation(() => generateWithOpenRouter(decision.improved_prompt, FLUX_MODEL, orKey), 1, 2000);
+                        source = "Flux (Retry)";
+                    } catch (e) {
+                         try {
+                            imageBlob = await retryOperation(() => generateWithOpenRouter(decision.improved_prompt, SDXL_MODEL, orKey), 1, 2000);
+                            source = "SDXL (Retry)";
+                         } catch (e2) {
+                            imageBlob = await retryOperation(() => generateWithPollinations(decision.improved_prompt), 1, 3000);
+                            source = "Pollinations (Retry)";
+                         }
                     }
-                    logCallback("  > Artist: Retry successful.");
+                    logCallback(`  > Artist: Retry successful via ${source}.`);
                 } catch (retryErr) {
                     logCallback(`  > Retry failed: ${retryErr.message}. Using original.`);
                 }
@@ -144,20 +180,18 @@ async function generatePanelWithRetry(panelDesc, cfAccountId, cfApiToken, orKey,
  * Includes throttling to avoid rate limits and error handling for individual panels.
  *
  * @param {Array<Object>} panelsData - Array of panel objects, each containing an `id` and `description`.
- * @param {string} cfAccountId - The Cloudflare account ID.
- * @param {string} cfApiToken - The Cloudflare API token.
  * @param {string} orKey - The OpenRouter API key.
  * @param {Function} logCallback - Callback function for logging progress.
  * @returns {Promise<Object>} - A promise that resolves to an object mapping panel IDs to ImageBitmap objects (or canvas placeholders on error).
  */
-export async function generatePagePanels(panelsData, cfAccountId, cfApiToken, orKey, logCallback) {
+export async function generatePagePanels(panelsData, orKey, logCallback) {
     const results = {};
 
     // Process sequentially
     for (const panel of panelsData) {
         try {
             logCallback(`Generating Panel ${panel.id}...`);
-            const blob = await generatePanelWithRetry(panel.description, cfAccountId, cfApiToken, orKey, logCallback);
+            const blob = await generatePanelWithRetry(panel.description, orKey, logCallback);
             const imgBitmap = await createImageBitmap(blob);
             results[panel.id] = imgBitmap;
             logCallback(`Panel ${panel.id} ready.`);

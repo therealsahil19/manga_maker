@@ -12,8 +12,6 @@ import { ContextManager } from './contextManager.js';
  */
 const DOM = {
     orKey: document.getElementById('openrouter-key'),
-    cfAccount: document.getElementById('cf-account'),
-    cfToken: document.getElementById('cf-token'),
     chapterNum: document.getElementById('chapter-num'),
     contextFile: document.getElementById('context-file'),
     downloadContextBtn: document.getElementById('download-context-btn'),
@@ -51,7 +49,6 @@ function updateProgress(percent) {
  */
 function validateInputs() {
     if (!DOM.orKey.value) return "Missing OpenRouter API Key";
-    // Cloudflare is optional (fallback to Pollinations)
     if (!DOM.sceneText.value.trim()) return "Missing Scene Text";
     return null;
 }
@@ -142,8 +139,6 @@ DOM.generateBtn.addEventListener('click', async () => {
             // Artist (Generate Panels)
             const panelImages = await generatePagePanels(
                 panelsData,
-                DOM.cfAccount.value,
-                DOM.cfToken.value,
                 DOM.orKey.value,
                 (msg) => log(msg)
             );
