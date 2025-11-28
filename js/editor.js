@@ -4,9 +4,11 @@ const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const VISION_MODEL = "meta-llama/llama-3.2-11b-vision-instruct:free";
 
 /**
- * Converts a Blob to a Base64 string.
- * @param {Blob} blob
- * @returns {Promise<string>}
+ * Converts a Blob object to a Base64 data URL string.
+ * This is necessary for sending image data to the Vision API.
+ *
+ * @param {Blob} blob - The image blob to convert.
+ * @returns {Promise<string>} - A promise that resolves to the Base64 data URL.
  */
 function blobToBase64(blob) {
     return new Promise((resolve, reject) => {
@@ -17,6 +19,13 @@ function blobToBase64(blob) {
     });
 }
 
+/**
+ * Parses and cleans the JSON response from the LLM.
+ * Attempts to extract JSON if the response is wrapped in text or markdown.
+ *
+ * @param {string} responseText - The raw text response from the LLM.
+ * @returns {Object|null} - The parsed JSON object, or null if parsing fails.
+ */
 function janitor(responseText) {
     try {
         return JSON.parse(responseText);
@@ -35,10 +44,15 @@ function janitor(responseText) {
 }
 
 /**
- * Critiques an image and suggests a better prompt if needed.
- * @param {Blob} imageBlob
- * @param {string} originalPrompt
- * @param {string} apiKey
+ * Critiques a generated image against its original description using a Vision LLM.
+ * Determines if the image passes quality standards or if it needs regeneration with an improved prompt.
+ *
+ * @param {Blob} imageBlob - The generated image to be critiqued.
+ * @param {string} originalPrompt - The description used to generate the image.
+ * @param {string} apiKey - The OpenRouter API key.
+ * @returns {Promise<{pass: boolean, reason: string, improved_prompt: string|null}>}
+ *          - A promise that resolves to an object containing the pass status, reasoning, and optionally an improved prompt.
+ *          Returns a "pass" result in case of errors to avoid blocking the workflow ("fail open").
  */
 export async function critiqueImage(imageBlob, originalPrompt, apiKey) {
     try {

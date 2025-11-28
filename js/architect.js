@@ -38,6 +38,13 @@ CRITICAL RULES:
 3. Ensure panel counts match the layout (splash=1, grid=4, cinematic=3).
 `;
 
+/**
+ * Parses and cleans the JSON response from the LLM.
+ * Attempts to extract JSON if the response is wrapped in text or markdown.
+ *
+ * @param {string} responseText - The raw text response from the LLM.
+ * @returns {Object|null} - The parsed JSON object, or null if parsing fails.
+ */
 function janitor(responseText) {
     try {
         return JSON.parse(responseText);
@@ -57,6 +64,17 @@ function janitor(responseText) {
     }
 }
 
+/**
+ * Orchestrates the creation of a chapter blueprint using an LLM.
+ * Sends the chapter text and context to the LLM to generate page layouts and panel descriptions.
+ *
+ * @param {string} chapterText - The full text of the chapter to be adapted.
+ * @param {string} contextSummary - A summary of previous chapters to maintain context.
+ * @param {string} apiKey - The OpenRouter API key.
+ * @returns {Promise<Object>} - A promise that resolves to the chapter blueprint object containing pages and panels.
+ *                              Returns a fallback blueprint in case of parsing errors.
+ * @throws {Error} - Throws an error if the API request fails.
+ */
 export async function getChapterBlueprint(chapterText, contextSummary, apiKey) {
     const prompt = `
 Context from previous chapters:

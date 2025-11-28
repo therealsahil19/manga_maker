@@ -4,12 +4,26 @@ import { critiqueImage } from './editor.js';
 
 const STYLE_SUFFIX = ", Seinen style, heavy cross-hatching, dramatic high contrast shadows, intricate details, manga aesthetic, black and white, masterpiece by Kentaro Miura, ink drawing";
 
-// Helper: Sleep
+/**
+ * Delays execution for a specified number of milliseconds.
+ *
+ * @param {number} ms - The number of milliseconds to sleep.
+ * @returns {Promise<void>} - A promise that resolves after the specified delay.
+ */
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Helper: Retry Operation
+/**
+ * Retries an asynchronous operation with exponential backoff.
+ *
+ * @param {Function} fn - The async function to execute.
+ * @param {number} [retries=3] - The maximum number of retry attempts.
+ * @param {number} [delayMs=2000] - The initial delay in milliseconds before the first retry.
+ * @param {Function} [logCallback] - Optional callback function for logging retry attempts.
+ * @returns {Promise<*>} - The result of the successful operation.
+ * @throws {Error} - Throws the last error encountered if all retries fail.
+ */
 async function retryOperation(fn, retries = 3, delayMs = 2000, logCallback) {
     let lastError;
     for (let i = 0; i < retries; i++) {
@@ -27,9 +41,12 @@ async function retryOperation(fn, retries = 3, delayMs = 2000, logCallback) {
 
 /**
  * Generates an image using Cloudflare Workers AI.
- * @param {string} prompt
- * @param {string} accountId
- * @param {string} apiToken
+ *
+ * @param {string} prompt - The prompt describing the image to generate.
+ * @param {string} accountId - The Cloudflare account ID.
+ * @param {string} apiToken - The Cloudflare API token.
+ * @returns {Promise<Blob>} - A promise that resolves to the generated image as a Blob.
+ * @throws {Error} - Throws an error if the API request fails.
  */
 async function generateWithCloudflare(prompt, accountId, apiToken) {
     const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0`;
@@ -56,7 +73,10 @@ async function generateWithCloudflare(prompt, accountId, apiToken) {
 
 /**
  * Generates an image using Pollinations.ai (Fallback).
- * @param {string} prompt
+ *
+ * @param {string} prompt - The prompt describing the image to generate.
+ * @returns {Promise<Blob>} - A promise that resolves to the generated image as a Blob.
+ * @throws {Error} - Throws an error if the API request fails.
  */
 async function generateWithPollinations(prompt) {
     const encodedPrompt = encodeURIComponent(prompt + STYLE_SUFFIX);
@@ -74,7 +94,15 @@ async function generateWithPollinations(prompt) {
 }
 
 /**
- * Generates a panel, critiques it, and retries if necessary.
+ * Generates a panel, critiques it using the Editor agent, and retries generation if necessary.
+ *
+ * @param {string} panelDesc - The description of the panel to generate.
+ * @param {string} cfAccountId - The Cloudflare account ID.
+ * @param {string} cfApiToken - The Cloudflare API token.
+ * @param {string} orKey - The OpenRouter API key for the critique process.
+ * @param {Function} logCallback - Callback function for logging progress and errors.
+ * @returns {Promise<Blob|null>} - A promise that resolves to the generated image Blob, or null if generation fails completely.
+ * @throws {Error} - Throws an error if all generation methods fail.
  */
 async function generatePanelWithRetry(panelDesc, cfAccountId, cfApiToken, orKey, logCallback) {
     let currentPrompt = panelDesc;
@@ -145,6 +173,17 @@ async function generatePanelWithRetry(panelDesc, cfAccountId, cfApiToken, orKey,
     return imageBlob;
 }
 
+/**
+ * Generates images for a list of panels sequentially.
+ * Includes throttling to avoid rate limits and error handling for individual panels.
+ *
+ * @param {Array<Object>} panelsData - Array of panel objects, each containing an `id` and `description`.
+ * @param {string} cfAccountId - The Cloudflare account ID.
+ * @param {string} cfApiToken - The Cloudflare API token.
+ * @param {string} orKey - The OpenRouter API key.
+ * @param {Function} logCallback - Callback function for logging progress.
+ * @returns {Promise<Object>} - A promise that resolves to an object mapping panel IDs to ImageBitmap objects (or canvas placeholders on error).
+ */
 export async function generatePagePanels(panelsData, cfAccountId, cfApiToken, orKey, logCallback) {
     const results = {};
 
