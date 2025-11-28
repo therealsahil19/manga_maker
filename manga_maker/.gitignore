@@ -1,0 +1,6 @@
+.env
+output/
+context.json
+__pycache__/
+*.pyc
+.DS_Store
