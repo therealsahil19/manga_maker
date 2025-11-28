@@ -5,14 +5,15 @@ CANVAS_WIDTH = 1240
 CANVAS_HEIGHT = 1754
 BORDER_WIDTH = 5
 
-def assemble_page(layout_coords: list, panel_images: dict, page_number: int) -> str:
+def assemble_page(layout_coords: list, panel_images: dict, page_number: int, return_image_obj: bool = False):
     """
     Assembles the final page image.
     layout_coords: List of dicts with x, y, width, height, id.
     panel_images: Dict mapping id to PIL Image.
     page_number: The page number for saving.
+    return_image_obj: If True, returns (filepath, canvas_image). Otherwise returns filepath.
 
-    Returns the path to the saved image.
+    Returns the path to the saved image (or tuple if requested).
     """
     # Create blank white canvas
     canvas = Image.new("RGB", (CANVAS_WIDTH, CANVAS_HEIGHT), "white")
@@ -75,4 +76,7 @@ def assemble_page(layout_coords: list, panel_images: dict, page_number: int) -> 
 
     canvas.save(filepath)
     print(f"Saved: {filepath}")
+
+    if return_image_obj:
+        return filepath, canvas
     return filepath
