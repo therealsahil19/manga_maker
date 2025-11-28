@@ -4,32 +4,38 @@ const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
 const SYSTEM_PROMPT = `You are 'The Architect', an expert manga layout strategist.
-Your goal is to analyze a story segment and determine the best page layout and panel visual descriptions.
+Your goal is to analyze a full chapter text and split it into multiple manga pages (AT LEAST 8 PAGES).
+You must also provide a short summary of the chapter events for future context.
 
 You must output a strictly valid JSON object. Do not include markdown formatting like \`\`\`json ... \`\`\`.
 
-Analyze the provided text and choose ONE of the following layouts:
-1. "splash": Use for major reveals, climactic moments, or establishing shots. (1 panel)
-2. "grid": Use for fast-paced action, fight scenes, or conversations. (4 panels)
-3. "cinematic": Use for tense dialogue, wide shots, or dramatic pacing. (3 panels)
+Layout Options for each page:
+1. "splash": Major reveals, climactic moments. (1 panel)
+2. "grid": Action, fights, conversations. (4 panels)
+3. "cinematic": Tense dialogue, wide shots. (3 panels)
 
 Output structure:
 {
-  "layout": "splash" | "grid" | "cinematic",
-  "reasoning": "Brief explanation of why this layout fits the tone.",
-  "panels": [
+  "chapterSummary": "A concise summary of the events in this chapter.",
+  "pages": [
     {
-      "id": 1,
-      "description": "Visual description of the panel. Focus on composition, subject, action, and lighting. Do not include text bubbles."
+      "pageId": 1,
+      "layout": "splash" | "grid" | "cinematic",
+      "panels": [
+        {
+          "id": 1,
+          "description": "Visual description only. Focus on composition, subject, action, lighting. No text bubbles."
+        }
+      ]
     },
     ...
   ]
 }
 
-Ensure the number of panels matches the layout:
-- splash: 1 panel
-- grid: 4 panels
-- cinematic: 3 panels
+CRITICAL RULES:
+1. You MUST generate at least 8 pages.
+2. Maintain story continuity.
+3. Ensure panel counts match the layout (splash=1, grid=4, cinematic=3).
 `;
 
 function janitor(responseText) {
@@ -51,12 +57,22 @@ function janitor(responseText) {
     }
 }
 
-export async function getBlueprint(sceneText, apiKey) {
+export async function getChapterBlueprint(chapterText, contextSummary, apiKey) {
+    const prompt = `
+Context from previous chapters:
+${contextSummary}
+
+Current Chapter Text:
+${chapterText}
+
+Analyze this text, break it down into at least 8 manga pages, and provide a blueprint.
+`;
+
     const payload = {
         model: MODEL,
         messages: [
             { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: `Analyze this scene:\n\n${sceneText}` }
+            { role: "user", content: prompt }
         ],
         temperature: 0.7
     };
@@ -66,7 +82,7 @@ export async function getBlueprint(sceneText, apiKey) {
         headers: {
             "Authorization": `Bearer ${apiKey}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": window.location.href, // OpenRouter requirement
+            "HTTP-Referer": window.location.href,
             "X-Title": "Manga Maker V9 Web"
         },
         body: JSON.stringify(payload)
@@ -80,16 +96,21 @@ export async function getBlueprint(sceneText, apiKey) {
     const content = result.choices[0].message.content;
     const blueprint = janitor(content);
 
-    if (!blueprint) {
-        console.warn("Using fallback grid layout due to parsing error.");
+    if (!blueprint || !blueprint.pages) {
+        console.warn("Parsing error or invalid format. Returning fallback.");
         return {
-            layout: "grid",
-            reasoning: "Fallback due to AI error.",
-            panels: [
-                { id: 1, description: "A generic scene visualization." },
-                { id: 2, description: "A generic scene visualization." },
-                { id: 3, description: "A generic scene visualization." },
-                { id: 4, description: "A generic scene visualization." }
+            chapterSummary: "Error processing chapter.",
+            pages: [
+                {
+                    pageId: 1,
+                    layout: "grid",
+                    panels: [
+                        { id: 1, description: "Scene start." },
+                        { id: 2, description: "Scene continues." },
+                        { id: 3, description: "Scene action." },
+                        { id: 4, description: "Scene end." }
+                    ]
+                }
             ]
         };
     }

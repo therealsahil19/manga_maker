@@ -11,47 +11,63 @@
     <div class="container">
         <header>
             <h1>Manga Maker V9</h1>
-            <p>AI-Powered Manga Page Generator</p>
+            <p>AI-Powered Manga Page Generator (Context Aware)</p>
         </header>
 
         <main>
             <section class="config-section">
                 <h2>Configuration</h2>
                 <div class="input-group">
-                    <label for="openrouter-key">OpenRouter API Key:</label>
+                    <label for="openrouter-key">OpenRouter API Key (Architect/Editor):</label>
                     <input type="password" id="openrouter-key" placeholder="sk-or-..." required>
                 </div>
                 <div class="input-group">
-                    <label for="hf-key">HuggingFace API Key:</label>
-                    <input type="password" id="hf-key" placeholder="hf_..." required>
+                    <label for="cf-account">Cloudflare Account ID (Artist):</label>
+                    <input type="password" id="cf-account" placeholder="Account ID" required>
                 </div>
                 <div class="input-group">
-                    <label for="hf-model">HuggingFace Model ID:</label>
-                    <input type="text" id="hf-model" value="stabilityai/stable-diffusion-xl-base-1.0">
+                    <label for="cf-token">Cloudflare API Token (Artist):</label>
+                    <input type="password" id="cf-token" placeholder="API Token" required>
+                </div>
+                <p class="hint">Leave Cloudflare fields empty to use Pollinations.ai (free, slower).</p>
+            </section>
+
+            <section class="context-section">
+                <h2>Story Context</h2>
+                <div class="input-group">
+                    <label for="chapter-num">Current Chapter Number:</label>
+                    <input type="number" id="chapter-num" value="1" min="1">
+                </div>
+                <div class="input-group">
+                    <label for="context-file">Load Context File (.json):</label>
+                    <input type="file" id="context-file" accept=".json">
+                </div>
+                <div class="actions">
+                    <button id="download-context-btn" class="secondary-btn" disabled>Download Updated Context</button>
                 </div>
             </section>
 
             <section class="input-section">
                 <h2>Story Input</h2>
                 <div class="input-group">
-                    <label for="scene-text">Scene Description / Story Segment:</label>
-                    <textarea id="scene-text" rows="6" placeholder="Enter a scene description (approx. 1500 chars). e.g., 'Guts swings his massive sword at the demon...'"></textarea>
+                    <label for="scene-text">Chapter Content:</label>
+                    <textarea id="scene-text" rows="10" placeholder="Paste the full chapter text here. The Architect will split it into multiple pages (min 8)."></textarea>
                 </div>
-                <button id="generate-btn" class="primary-btn">Generate Manga Page</button>
+                <button id="generate-btn" class="primary-btn">Generate Chapter</button>
             </section>
 
             <section class="status-section">
                 <h3>Status</h3>
                 <div id="status-log" class="log-box">Ready.</div>
+                <div id="progress-bar-container" style="display:none; width: 100%; background: #ccc; height: 20px; margin-top: 10px;">
+                    <div id="progress-bar" style="width: 0%; background: #4caf50; height: 100%;"></div>
+                </div>
             </section>
 
             <section class="preview-section">
-                <h2>Preview</h2>
-                <div id="canvas-container">
-                    <!-- Canvas will be appended here -->
-                </div>
-                <div class="actions">
-                    <button id="download-btn" class="secondary-btn" disabled>Download Page</button>
+                <h2>Pages</h2>
+                <div id="pages-container">
+                    <!-- Canvases will be appended here -->
                 </div>
             </section>
         </main>
