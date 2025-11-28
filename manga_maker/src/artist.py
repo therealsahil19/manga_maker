@@ -12,7 +12,7 @@ API_KEY = os.getenv("HF_API_KEY")
 # but InferenceClient handles it better or we can switch model.
 MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
 
-STYLE_SUFFIX = ", seine style, heavy cross-hatching, dramatic high contrast shadows, intricate details, manga aesthetic, black and white, masterpiece by Kentaro Miura, ink drawing"
+STYLE_SUFFIX = ", Seinen style, heavy cross-hatching, dramatic high contrast shadows, intricate details, manga aesthetic, black and white, masterpiece by Kentaro Miura, ink drawing"
 
 def generate_panel_image(prompt: str) -> Image.Image:
     """Generates a single image from the HF API."""
