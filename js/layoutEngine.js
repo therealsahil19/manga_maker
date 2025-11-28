@@ -2,11 +2,25 @@
 const CANVAS_WIDTH = 1240;
 const CANVAS_HEIGHT = 1754;
 
+/**
+ * Global canvas specifications for A4 manga pages.
+ * @type {Object}
+ * @property {number} width - The width of the canvas in pixels.
+ * @property {number} height - The height of the canvas in pixels.
+ */
 export const CanvasSpecs = {
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT
 };
 
+/**
+ * Calculates the panel coordinates and dimensions based on the requested layout type.
+ *
+ * @param {string} layoutType - The type of layout to generate. Options: "splash", "grid", "cinematic".
+ * @returns {Array<{id: number, x: number, y: number, width: number, height: number}>}
+ *          - An array of panel objects containing position (x, y) and dimensions (width, height).
+ *          Returns a "splash" layout by default if the layout type is unknown.
+ */
 export function calculateLayout(layoutType) {
     const type = layoutType.toLowerCase();
     const panels = [];

@@ -6,6 +6,10 @@ import { generatePagePanels } from './artist.js';
 import { assemblePage } from './typesetter.js';
 import { ContextManager } from './contextManager.js';
 
+/**
+ * DOM Elements Cache
+ * @type {Object.<string, HTMLElement>}
+ */
 const DOM = {
     orKey: document.getElementById('openrouter-key'),
     cfAccount: document.getElementById('cf-account'),
@@ -23,16 +27,28 @@ const DOM = {
 
 const contextManager = new ContextManager();
 
+/**
+ * Appends a message to the status log with a timestamp.
+ * @param {string} message - The message to log.
+ */
 function log(message) {
     const timestamp = new Date().toLocaleTimeString();
     DOM.statusLog.textContent += `[${timestamp}] ${message}\n`;
     DOM.statusLog.scrollTop = DOM.statusLog.scrollHeight;
 }
 
+/**
+ * Updates the progress bar width.
+ * @param {number} percent - The percentage (0-100) of progress.
+ */
 function updateProgress(percent) {
     DOM.progressBar.style.width = `${percent}%`;
 }
 
+/**
+ * Validates the required inputs before generation.
+ * @returns {string|null} - Returns an error message string if invalid, or null if valid.
+ */
 function validateInputs() {
     if (!DOM.orKey.value) return "Missing OpenRouter API Key";
     // Cloudflare is optional (fallback to Pollinations)

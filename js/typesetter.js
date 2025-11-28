@@ -4,6 +4,17 @@ import { CanvasSpecs } from './layoutEngine.js';
 
 const BORDER_WIDTH = 5;
 
+/**
+ * Assembles a complete manga page by drawing generated panel images onto a canvas based on the layout coordinates.
+ * Handles cropping (aspect ratio fit) and drawing borders for each panel.
+ *
+ * @param {Array<{id: number, x: number, y: number, width: number, height: number}>} layoutCoords
+ *          - Array of objects defining the position and size of each panel.
+ * @param {Object.<number, ImageBitmap|HTMLCanvasElement>} panelImages
+ *          - A map of panel IDs to their corresponding image objects (ImageBitmap or Canvas).
+ * @returns {Promise<HTMLCanvasElement>}
+ *          - A promise that resolves to the assembled HTMLCanvasElement containing the full manga page.
+ */
 export async function assemblePage(layoutCoords, panelImages) {
     const canvas = document.createElement('canvas');
     canvas.width = CanvasSpecs.width;
