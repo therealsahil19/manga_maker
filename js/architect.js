@@ -1,5 +1,7 @@
 // Architect Agent
 
+import { retryOperation } from './utils.js';
+
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "meta-llama/llama-3.3-70b-instruct:free";
 
@@ -67,15 +69,16 @@ function janitor(responseText) {
 /**
  * Orchestrates the creation of a chapter blueprint using an LLM.
  * Sends the chapter text and context to the LLM to generate page layouts and panel descriptions.
+ * Includes retry logic for API stability.
  *
  * @param {string} chapterText - The full text of the chapter to be adapted.
  * @param {string} contextSummary - A summary of previous chapters to maintain context.
  * @param {string} apiKey - The OpenRouter API key.
+ * @param {Function} [logCallback] - Optional callback for logging status messages.
  * @returns {Promise<Object>} - A promise that resolves to the chapter blueprint object containing pages and panels.
- *                              Returns a fallback blueprint in case of parsing errors.
- * @throws {Error} - Throws an error if the API request fails.
+ *                              Returns a fallback blueprint in case of errors.
  */
-export async function getChapterBlueprint(chapterText, contextSummary, apiKey) {
+export async function getChapterBlueprint(chapterText, contextSummary, apiKey, logCallback) {
     const prompt = `
 Context from previous chapters:
 ${contextSummary}
@@ -95,43 +98,57 @@ Analyze this text, break it down into at least 8 manga pages, and provide a blue
         temperature: 0.7
     };
 
-    const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": window.location.href,
-            "X-Title": "Manga Maker V9 Web"
-        },
-        body: JSON.stringify(payload)
-    });
+    const fetchBlueprint = async () => {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": window.location.href,
+                "X-Title": "Manga Maker V9 Web"
+            },
+            body: JSON.stringify(payload)
+        });
 
-    if (!response.ok) {
-        throw new Error(`Architect API Error: ${response.status} ${response.statusText}`);
-    }
+        if (!response.ok) {
+            throw new Error(`Architect API Error: ${response.status} ${response.statusText}`);
+        }
 
-    const result = await response.json();
-    const content = result.choices[0].message.content;
-    const blueprint = janitor(content);
+        const result = await response.json();
+        const content = result.choices[0].message.content;
+        const blueprint = janitor(content);
 
-    if (!blueprint || !blueprint.pages) {
-        console.warn("Parsing error or invalid format. Returning fallback.");
+        if (!blueprint || !blueprint.pages) {
+            throw new Error("Parsing error or invalid format.");
+        }
+
+        return blueprint;
+    };
+
+    try {
+        return await retryOperation(fetchBlueprint, 3, 2000, logCallback);
+    } catch (error) {
+        if (logCallback) {
+            logCallback(`CRITICAL ARCHITECT ERROR: ${error.message}. Switching to fallback blueprint.`);
+        } else {
+            console.error("Architect failed", error);
+        }
+
+        // Fallback blueprint
         return {
-            chapterSummary: "Error processing chapter.",
+            chapterSummary: "Error processing chapter - Manual Fallback.",
             pages: [
                 {
                     pageId: 1,
                     layout: "grid",
                     panels: [
-                        { id: 1, description: "Scene start." },
-                        { id: 2, description: "Scene continues." },
-                        { id: 3, description: "Scene action." },
-                        { id: 4, description: "Scene end." }
+                        { id: 1, description: "Scene start (Fallback)." },
+                        { id: 2, description: "Scene continues (Fallback)." },
+                        { id: 3, description: "Scene action (Fallback)." },
+                        { id: 4, description: "Scene end (Fallback)." }
                     ]
                 }
             ]
         };
     }
-
-    return blueprint;
 }

@@ -116,7 +116,7 @@ DOM.generateBtn.addEventListener('click', async () => {
 
         // 1. Architect: Get Blueprint
         log("Architect: Analyzing chapter and designing pages...");
-        const blueprint = await getChapterBlueprint(chapterText, contextSummary, DOM.orKey.value);
+        const blueprint = await getChapterBlueprint(chapterText, contextSummary, DOM.orKey.value, (msg) => log(msg));
 
         const pageCount = blueprint.pages.length;
         log(`Architect: Planned ${pageCount} pages.`);
