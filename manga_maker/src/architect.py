@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-API_KEY = os.getenv("OPENROUTER_API_KEY")
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 
@@ -62,10 +61,13 @@ def janitor(response_text: str) -> dict:
             print("Janitor failed to clean response.")
             return None
 
-def get_blueprint(scene_text: str) -> dict:
+def get_blueprint(scene_text: str, api_key: str = None) -> dict:
     """Calls the LLM to get the page blueprint."""
+    # Use passed key or fallback to env var
+    key_to_use = api_key if api_key else os.getenv("OPENROUTER_API_KEY")
+
     headers = {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {key_to_use}",
         "Content-Type": "application/json",
         "HTTP-Referer": "http://localhost:3000", # Required by OpenRouter, dummy value ok
     }
