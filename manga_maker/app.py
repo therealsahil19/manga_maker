@@ -32,6 +32,9 @@ def main():
     with col2:
         hf_key = st.text_input("HuggingFace API Key", type="password")
 
+    # Model Selection
+    model_id = st.text_input("HuggingFace Model ID", value="stabilityai/stable-diffusion-xl-base-1.0", help="Try 'black-forest-labs/FLUX.1-schnell' or 'stabilityai/stable-diffusion-2-1' if default fails.")
+
     scene_text = st.text_area("Paste your scene/chapter text here:", height=200)
 
     if st.button("Generate Manga Page"):
@@ -65,7 +68,9 @@ def main():
             status_text.text("Commissioning The Artist (Generating Images)...")
             progress_bar.progress(60)
             panels_data = blueprint.get('panels', [])
-            panel_images = artist.generate_page_panels(panels_data, api_key=hf_key)
+
+            # Pass model_id to artist
+            panel_images = artist.generate_page_panels(panels_data, api_key=hf_key, model_id=model_id)
 
             # Show individual panels
             st.subheader("Generated Panels")
