@@ -3,7 +3,8 @@
 import { retryOperation } from './utils.js';
 
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "google/gemini-2.0-flash-lite-preview-02-05:free";
+const PRIMARY_MODEL = "tngtech/tng-r1t-chimera:free";
+const FALLBACK_MODEL = "google/gemini-2.0-flash-lite-preview-02-05:free";
 
 const SYSTEM_PROMPT = `You are 'The Architect', an expert manga layout strategist.
 Your goal is to analyze a full chapter text and split it into multiple manga pages (AT LEAST 8 PAGES).
@@ -69,7 +70,7 @@ function janitor(responseText) {
 /**
  * Orchestrates the creation of a chapter blueprint using an LLM.
  * Sends the chapter text and context to the LLM to generate page layouts and panel descriptions.
- * Includes retry logic for API stability.
+ * Includes retry logic for API stability and model fallback.
  *
  * @param {string} chapterText - The full text of the chapter to be adapted.
  * @param {string} contextSummary - A summary of previous chapters to maintain context.
@@ -89,16 +90,17 @@ ${chapterText}
 Analyze this text, break it down into at least 8 manga pages, and provide a blueprint.
 `;
 
-    const payload = {
-        model: MODEL,
-        messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: prompt }
-        ],
-        temperature: 0.7
-    };
+    // 1. Try Primary Model (TNG Chimera)
+    const fetchPrimary = async () => {
+        const payload = {
+            model: PRIMARY_MODEL,
+            messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0.7
+        };
 
-    const fetchBlueprint = async () => {
         const response = await fetch(API_URL, {
             method: "POST",
             headers: {
@@ -111,7 +113,7 @@ Analyze this text, break it down into at least 8 manga pages, and provide a blue
         });
 
         if (!response.ok) {
-            throw new Error(`Architect API Error: ${response.status} ${response.statusText}`);
+            throw new Error(`Architect Primary API Error: ${response.status} ${response.statusText}`);
         }
 
         const result = await response.json();
@@ -119,36 +121,80 @@ Analyze this text, break it down into at least 8 manga pages, and provide a blue
         const blueprint = janitor(content);
 
         if (!blueprint || !blueprint.pages) {
-            throw new Error("Parsing error or invalid format.");
+            throw new Error("Parsing error or invalid format (Primary).");
+        }
+        return blueprint;
+    };
+
+    // 2. Try Fallback Model (Google Gemini) - merging system prompt
+    const fetchFallback = async () => {
+        // Merge system prompt into user prompt to avoid 400 errors on some models
+        const mergedPrompt = `${SYSTEM_PROMPT}\n\nTask:\n${prompt}`;
+
+        const payload = {
+            model: FALLBACK_MODEL,
+            messages: [
+                { role: "user", content: mergedPrompt }
+            ],
+            temperature: 0.7
+        };
+
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": window.location.href,
+                "X-Title": "Manga Maker V9 Web"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Architect Fallback API Error: ${response.status} ${response.statusText}`);
         }
 
+        const result = await response.json();
+        const content = result.choices[0].message.content;
+        const blueprint = janitor(content);
+
+        if (!blueprint || !blueprint.pages) {
+            throw new Error("Parsing error or invalid format (Fallback).");
+        }
         return blueprint;
     };
 
     try {
-        return await retryOperation(fetchBlueprint, 3, 2000, logCallback);
-    } catch (error) {
-        if (logCallback) {
-            logCallback(`CRITICAL ARCHITECT ERROR: ${error.message}. Switching to fallback blueprint.`);
-        } else {
-            console.error("Architect failed", error);
-        }
+        if (logCallback) logCallback("Architect: Analysing chapter with primary model...");
+        return await retryOperation(fetchPrimary, 2, 2000, logCallback);
+    } catch (primaryError) {
+        if (logCallback) logCallback(`Architect: Primary model failed (${primaryError.message}). Switching to fallback...`);
 
-        // Fallback blueprint
-        return {
-            chapterSummary: "Error processing chapter - Manual Fallback.",
-            pages: [
-                {
-                    pageId: 1,
-                    layout: "grid",
-                    panels: [
-                        { id: 1, description: "Scene start (Fallback)." },
-                        { id: 2, description: "Scene continues (Fallback)." },
-                        { id: 3, description: "Scene action (Fallback)." },
-                        { id: 4, description: "Scene end (Fallback)." }
-                    ]
-                }
-            ]
-        };
+        try {
+            return await retryOperation(fetchFallback, 2, 2000, logCallback);
+        } catch (fallbackError) {
+            if (logCallback) {
+                logCallback(`CRITICAL ARCHITECT ERROR: ${fallbackError.message}. Switching to simplified manual blueprint.`);
+            } else {
+                console.error("Architect failed", fallbackError);
+            }
+
+            // Ultimate Fallback blueprint
+            return {
+                chapterSummary: "Error processing chapter - Manual Fallback.",
+                pages: [
+                    {
+                        pageId: 1,
+                        layout: "grid",
+                        panels: [
+                            { id: 1, description: "Scene start (Fallback)." },
+                            { id: 2, description: "Scene continues (Fallback)." },
+                            { id: 3, description: "Scene action (Fallback)." },
+                            { id: 4, description: "Scene end (Fallback)." }
+                        ]
+                    }
+                ]
+            };
+        }
     }
 }

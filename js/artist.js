@@ -6,29 +6,22 @@ import { sleep, retryOperation } from './utils.js';
 const STYLE_SUFFIX = ", Seinen style, heavy cross-hatching, dramatic high contrast shadows, intricate details, manga aesthetic, black and white, masterpiece by Kentaro Miura, ink drawing";
 const FLUX_MODEL = "black-forest-labs/flux-1-schnell";
 const SDXL_MODEL = "stabilityai/stable-diffusion-xl-base-1.0";
+// Switched to Chat Completions endpoint for broader model compatibility on OpenRouter
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 /**
- * Generates an image using OpenRouter.
+ * Generates an image using OpenRouter via the Chat Completions endpoint.
+ * This is preferred for many models like Flux on OpenRouter which support
+ * image generation via the 'chat' interface or return markdown links.
  *
  * @param {string} prompt - The prompt describing the image to generate.
  * @param {string} model - The model ID to use.
  * @param {string} apiKey - The OpenRouter API key.
  * @returns {Promise<Blob>} - A promise that resolves to the generated image as a Blob.
- * @throws {Error} - Throws an error if the API request fails.
+ * @throws {Error} - Throws an error if the API request fails or no image is found.
  */
 async function generateWithOpenRouter(prompt, model, apiKey) {
-    // OpenRouter Image Generation via Chat Completion API (common for some models)
-    // OR via dedicated image endpoint if available.
-    // However, most OpenRouter "image" models are accessed via the /completions or specific endpoints.
-    // Wait, OpenRouter standardizes mostly on text. For images, they map to providers.
-    // For Flux/SDXL on OpenRouter, the standard way is often using the OpenAI-compatible image generation endpoint
-    // `https://openrouter.ai/api/v1/images/generations`
-
-    // Let's try the standard OpenAI compatible image endpoint.
-    const url = "https://openrouter.ai/api/v1/images/generations";
-
-    const response = await fetch(url, {
+    const response = await fetch(OPENROUTER_URL, {
         method: "POST",
         headers: {
             "Authorization": `Bearer ${apiKey}`,
@@ -38,9 +31,9 @@ async function generateWithOpenRouter(prompt, model, apiKey) {
         },
         body: JSON.stringify({
             model: model,
-            prompt: prompt + STYLE_SUFFIX,
-            n: 1,
-            size: "1024x1024"
+            messages: [
+                { role: "user", content: prompt + STYLE_SUFFIX }
+            ]
         })
     });
 
@@ -50,12 +43,36 @@ async function generateWithOpenRouter(prompt, model, apiKey) {
 
     const data = await response.json();
 
-    if (!data.data || !data.data[0] || !data.data[0].url) {
-        throw new Error("Invalid response format from OpenRouter.");
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+         throw new Error("Invalid response format from OpenRouter.");
+    }
+
+    const content = data.choices[0].message.content;
+
+    // Extract Image URL
+    let imageUrl = null;
+
+    // 1. Try Markdown Image: ![alt](url)
+    const markdownMatch = content.match(/\!\[.*?\]\((.*?)\)/);
+    if (markdownMatch) {
+        imageUrl = markdownMatch[1];
+    } else {
+        // 2. Try raw URL (http...)
+        const urlMatch = content.match(/(https?:\/\/[^\s]+)/);
+        if (urlMatch) {
+             imageUrl = urlMatch[1];
+        }
+    }
+
+    if (!imageUrl) {
+        // Check if there is a 'url' property in the delta/message object directly (some providers)
+        // or check for 'image_url'
+        // But strictly for OpenRouter Chat completion, it's usually in content.
+        throw new Error("No image URL found in model response.");
     }
 
     // Fetch the image from the URL provided
-    const imageResponse = await fetch(data.data[0].url);
+    const imageResponse = await fetch(imageUrl);
     if (!imageResponse.ok) {
         throw new Error("Failed to download generated image.");
     }
