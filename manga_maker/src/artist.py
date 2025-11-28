@@ -28,17 +28,17 @@ def generate_panel_image(prompt: str, api_key: str = None, model_id: str = None)
         return image
     except StopIteration:
         print(f"Artist Error: Model '{model_to_use}' not found or not supported on Hugging Face Router.")
-        return Image.new("RGB", (512, 512), color="white")
+        raise
     except HfHubHTTPError as e:
         if e.response.status_code == 402:
              print(f"Artist Payment Error with {model_to_use}: Free limit reached or payment required.")
         else:
              print(f"Artist HTTP Error with {model_to_use}: {e}")
-        return Image.new("RGB", (512, 512), color="white")
+        raise
     except Exception as e:
         print(f"Artist Error with {model_to_use}: {repr(e)}")
         # print(traceback.format_exc()) # Uncomment for deep debugging
-        return Image.new("RGB", (512, 512), color="white")
+        raise
 
 def generate_page_panels(panels_data: list, api_key: str = None, model_id: str = None) -> dict:
     """
@@ -61,6 +61,6 @@ def generate_page_panels(panels_data: list, api_key: str = None, model_id: str =
                 results[p_id] = image
             except Exception as exc:
                 print(f"Panel {p_id} generated an exception: {exc}")
-                results[p_id] = Image.new("RGB", (512, 512), color="gray") # Fallback
+                raise exc
 
     return results

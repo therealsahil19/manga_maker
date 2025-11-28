@@ -107,14 +107,4 @@ def get_blueprint(scene_text: str, api_key: str = None) -> dict:
 
     except Exception as e:
         print(f"Architect API Error: {e}")
-        # Return fallback
-        return {
-                "layout": "grid",
-                "reasoning": "Fallback due to API error.",
-                "panels": [
-                    {"id": 1, "description": "Scene continue."},
-                    {"id": 2, "description": "Scene continue."},
-                    {"id": 3, "description": "Scene continue."},
-                    {"id": 4, "description": "Scene continue."}
-                ]
-            }
+        raise e
