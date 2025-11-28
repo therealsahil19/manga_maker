@@ -26,11 +26,11 @@ def main():
     # Main Input
     st.header("Chapter Input")
 
-    # Check environment variables
-    if not os.getenv("OPENROUTER_API_KEY"):
-        st.warning("OPENROUTER_API_KEY not found in environment variables.")
-    if not os.getenv("HF_API_KEY"):
-        st.warning("HF_API_KEY not found in environment variables.")
+    col1, col2 = st.columns(2)
+    with col1:
+        openrouter_key = st.text_input("OpenRouter API Key", type="password")
+    with col2:
+        hf_key = st.text_input("HuggingFace API Key", type="password")
 
     scene_text = st.text_area("Paste your scene/chapter text here:", height=200)
 
@@ -49,7 +49,7 @@ def main():
             # Step 1: Architect
             status_text.text("Consulting The Architect...")
             progress_bar.progress(20)
-            blueprint = architect.get_blueprint(scene_text)
+            blueprint = architect.get_blueprint(scene_text, api_key=openrouter_key)
 
             st.subheader("Architect's Blueprint")
             st.write(f"**Layout:** {blueprint.get('layout', 'unknown')}")
@@ -65,7 +65,7 @@ def main():
             status_text.text("Commissioning The Artist (Generating Images)...")
             progress_bar.progress(60)
             panels_data = blueprint.get('panels', [])
-            panel_images = artist.generate_page_panels(panels_data)
+            panel_images = artist.generate_page_panels(panels_data, api_key=hf_key)
 
             # Show individual panels
             st.subheader("Generated Panels")
