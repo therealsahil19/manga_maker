@@ -1,10 +1,29 @@
 
 import { extractImageUrl } from '../../js/utils.js';
 
+/**
+ * Runs a suite of unit tests for the `extractImageUrl` utility function.
+ * Verifies that the function correctly parses URLs from various text formats,
+ * including Markdown, raw URLs, and nested parentheses, while handling edge cases
+ * like trailing punctuation and wrapped characters.
+ *
+ * @returns {Promise<void>} - A promise that resolves when all tests have been executed.
+ */
 async function runTest() {
     let passed = true;
     console.log("Running extractImageUrl tests...");
 
+    /**
+     * @typedef {Object} TestCase
+     * @property {string} name - The name/description of the test case.
+     * @property {string} input - The input string containing a URL.
+     * @property {string} expected - The expected extracted URL.
+     */
+
+    /**
+     * Array of test cases covering standard and edge scenarios.
+     * @type {TestCase[]}
+     */
     const testCases = [
         {
             name: "Raw URL without parentheses",
