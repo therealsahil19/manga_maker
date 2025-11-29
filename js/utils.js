@@ -34,3 +34,36 @@ export async function retryOperation(fn, retries = 3, delayMs = 2000, logCallbac
     }
     throw lastError;
 }
+
+/**
+ * Extracts a clean Image URL from a text response.
+ * Handles Markdown links and raw URLs, and cleans trailing punctuation.
+ *
+ * @param {string} text - The text to search for a URL.
+ * @returns {string|null} - The extracted URL or null if not found.
+ */
+export function extractImageUrl(text) {
+    if (!text) return null;
+
+    let imageUrl = null;
+
+    // 1. Try Markdown Image: ![alt](url)
+    const markdownMatch = text.match(/\!\[.*?\]\((.*?)\)/);
+    if (markdownMatch) {
+        imageUrl = markdownMatch[1];
+    } else {
+        // 2. Try raw URL (http...)
+        const urlMatch = text.match(/(https?:\/\/[^\s]+)/);
+        if (urlMatch) {
+            imageUrl = urlMatch[1];
+        }
+    }
+
+    if (imageUrl) {
+        // Clean trailing punctuation that might have been captured (.,;!?)
+        // Also handle closing parenthesis/bracket if it wasn't part of markdown
+        return imageUrl.replace(/[.,;!?\])]+$/, "");
+    }
+
+    return null;
+}
