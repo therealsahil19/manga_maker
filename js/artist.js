@@ -10,6 +10,7 @@ const MODEL_NAME = "gemini-2.5-flash-image";
  * @param {string} apiKey - The Google AI API key.
  * @param {string} prompt - The prompt describing the image.
  * @returns {Promise<Blob>} - A promise that resolves to the generated image as a Blob.
+ * @throws {Error} - Throws an error if no image data is found in the response.
  */
 async function generateImage(apiKey, prompt) {
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -41,12 +42,13 @@ async function generateImage(apiKey, prompt) {
 }
 
 /**
- * Generates a panel image with retry logic.
+ * Generates a panel image with automatic retry logic using exponential backoff.
+ * Wrapper around the core generation function to handle transient failures.
  *
  * @param {string} apiKey - The Google AI API key.
- * @param {string} fullPrompt - The complete prompt including style guide.
- * @param {Function} logCallback - Callback for logging.
- * @returns {Promise<Blob>} - The generated image Blob.
+ * @param {string} fullPrompt - The complete prompt including style guide and description.
+ * @param {Function} [logCallback] - Optional callback function for logging status updates and errors.
+ * @returns {Promise<Blob>} - A promise that resolves to the generated image Blob.
  */
 export async function generatePanelImage(apiKey, fullPrompt, logCallback) {
     // Retry wrapper

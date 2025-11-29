@@ -4,7 +4,11 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const MODEL_NAME = "gemini-2.5-flash";
 
 /**
- * Converts a Blob to a GenerativePart object (Base64).
+ * Converts a file Blob into a GenerativePart object containing Base64 data.
+ * This helper function prepares the image data for transmission to the Generative AI API.
+ *
+ * @param {Blob} file - The image file blob to convert.
+ * @returns {Promise<{inlineData: {data: string, mimeType: string}}>} - A promise that resolves to an object structured for the API, containing the base64 data and mime type.
  */
 async function fileToGenerativePart(file) {
     const base64EncodedDataPromise = new Promise((resolve) => {
@@ -18,12 +22,16 @@ async function fileToGenerativePart(file) {
 }
 
 /**
- * Critiques an image against a prompt.
+ * Critiques a generated image against the original prompt using a Vision LLM.
+ * Evaluates the image based on action accuracy and stylistic consistency (Manga, B&W).
  *
- * @param {string} apiKey - The Google AI API key.
- * @param {Blob} imageBlob - The generated image.
- * @param {string} originalPrompt - The prompt used.
- * @returns {Promise<{score: number, advice: string}>}
+ * @param {string} apiKey - The API key for accessing the Google Generative AI service.
+ * @param {Blob} imageBlob - The generated image to be critiqued.
+ * @param {string} originalPrompt - The text prompt that was used to generate the image.
+ * @returns {Promise<{score: number, advice: string}>} - A promise that resolves to an object containing:
+ *   - score: A rating from 1 to 10 indicating how well the image matches the prompt.
+ *   - advice: A suggestion for improvement if the score is low (otherwise empty).
+ *   Returns a default passing score if the critique process fails.
  */
 export async function critiqueImage(apiKey, imageBlob, originalPrompt) {
     try {

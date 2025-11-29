@@ -6,12 +6,16 @@ const MODEL_NAME = "gemini-2.5-pro";
 
 /**
  * Orchestrates the creation of a chapter blueprint using an LLM.
+ * This function communicates with the Google Generative AI to parse the story text,
+ * update the global context, define style guides, and layout the manga pages.
  *
- * @param {string} apiKey - The Google AI API key.
- * @param {string} chapterText - The full text of the chapter to be adapted.
- * @param {Object} globalContext - The current global context object.
- * @param {Function} [logCallback] - Optional callback for logging status messages.
- * @returns {Promise<Object>} - A promise that resolves to the chapter blueprint object.
+ * @param {string} apiKey - The Google AI API key for authentication.
+ * @param {string} chapterText - The full text content of the chapter to be adapted into manga format.
+ * @param {Object} globalContext - The current global context object containing story history and summaries.
+ * @param {Function} [logCallback] - Optional callback function for logging status messages and progress updates.
+ * @returns {Promise<Object>} - A promise that resolves to the detailed chapter blueprint object.
+ *                              The object includes `new_global_context`, `local_style_guide`, and an array of `pages`.
+ * @throws {Error} - Throws an error if the generation fails after retries or if the response cannot be parsed.
  */
 export async function generateBlueprint(apiKey, chapterText, globalContext, logCallback) {
     const genAI = new GoogleGenerativeAI(apiKey);
