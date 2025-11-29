@@ -25,11 +25,18 @@ export async function retryOperation(fn, retries = 3, delayMs = 2000, logCallbac
             return await fn();
         } catch (error) {
             lastError = error;
-            if (logCallback) {
-                logCallback(`    > Attempt ${i + 1} failed: ${error.message}. Retrying in ${delayMs / 1000}s...`);
+            // Only sleep if this is NOT the last attempt
+            if (i < retries - 1) {
+                if (logCallback) {
+                    logCallback(`    > Attempt ${i + 1} failed: ${error.message}. Retrying in ${delayMs / 1000}s...`);
+                }
+                await sleep(delayMs);
+                delayMs *= 2; // Exponential backoff
+            } else {
+                 if (logCallback) {
+                    logCallback(`    > Attempt ${i + 1} failed: ${error.message}. Giving up.`);
+                }
             }
-            await sleep(delayMs);
-            delayMs *= 2; // Exponential backoff
         }
     }
     throw lastError;
