@@ -48,11 +48,29 @@ export function extractImageUrl(text) {
     let imageUrl = null;
 
     // 1. Try Markdown Image: ![alt](url)
-    // Improved regex to handle one level of nested parentheses, e.g., (1)
-    const markdownMatch = text.match(/\!\[.*?\]\(((\([^)]*\)|[^)])*)\)/);
-    if (markdownMatch) {
-        imageUrl = markdownMatch[1];
-    } else {
+    // We manually parse to handle nested parentheses (e.g. in filenames) which regex struggles with.
+    const markdownStart = text.match(/\!\[.*?\]\(/);
+    if (markdownStart) {
+        const startIndex = markdownStart.index + markdownStart[0].length;
+        let depth = 1;
+        let endIndex = -1;
+
+        for (let i = startIndex; i < text.length; i++) {
+            if (text[i] === '(') depth++;
+            else if (text[i] === ')') depth--;
+
+            if (depth === 0) {
+                endIndex = i;
+                break;
+            }
+        }
+
+        if (endIndex !== -1) {
+            imageUrl = text.substring(startIndex, endIndex);
+        }
+    }
+
+    if (!imageUrl) {
         // 2. Try raw URL (http...)
         const urlMatch = text.match(/(https?:\/\/[^\s"<>]+)/);
         if (urlMatch) {
