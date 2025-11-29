@@ -54,7 +54,7 @@ export function extractImageUrl(text) {
         imageUrl = markdownMatch[1];
     } else {
         // 2. Try raw URL (http...)
-        const urlMatch = text.match(/(https?:\/\/[^\s]+)/);
+        const urlMatch = text.match(/(https?:\/\/[^\s"<>]+)/);
         if (urlMatch) {
             imageUrl = urlMatch[1];
         }
