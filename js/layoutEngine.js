@@ -32,7 +32,9 @@ export const CanvasSpecs = {
  *          Returns a "splash" layout by default if the layout type is unknown.
  */
 export function calculateLayout(layoutType) {
-    const type = layoutType.toLowerCase();
+    // Safety check: ensure layoutType is a string
+    const safeLayout = (typeof layoutType === 'string') ? layoutType : "splash";
+    const type = safeLayout.toLowerCase();
     const panels = [];
     const margin = 50;
     const gap = 20;
