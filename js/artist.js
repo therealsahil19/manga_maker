@@ -1,7 +1,7 @@
 // Artist Agent
 
 import { critiqueImage } from './editor.js';
-import { sleep, retryOperation } from './utils.js';
+import { sleep, retryOperation, extractImageUrl } from './utils.js';
 
 const STYLE_SUFFIX = ", Seinen style, heavy cross-hatching, dramatic high contrast shadows, intricate details, manga aesthetic, black and white, masterpiece by Kentaro Miura, ink drawing";
 const FLUX_MODEL = "black-forest-labs/flux-1-schnell";
@@ -50,19 +50,7 @@ async function generateWithOpenRouter(prompt, model, apiKey) {
     const content = data.choices[0].message.content;
 
     // Extract Image URL
-    let imageUrl = null;
-
-    // 1. Try Markdown Image: ![alt](url)
-    const markdownMatch = content.match(/\!\[.*?\]\((.*?)\)/);
-    if (markdownMatch) {
-        imageUrl = markdownMatch[1];
-    } else {
-        // 2. Try raw URL (http...)
-        const urlMatch = content.match(/(https?:\/\/[^\s]+)/);
-        if (urlMatch) {
-             imageUrl = urlMatch[1];
-        }
-    }
+    const imageUrl = extractImageUrl(content);
 
     if (!imageUrl) {
         // Check if there is a 'url' property in the delta/message object directly (some providers)
