@@ -1,3 +1,12 @@
+"""
+Manga Maker UI Verification Script.
+
+This module provides a Playwright-based verification function to ensure the frontend
+user interface is correctly rendered and configured. It specifically checks for the
+removal of legacy Cloudflare inputs and the presence of Google AI Studio
+configuration fields.
+"""
+
 from playwright.sync_api import sync_playwright, expect
 
 def verify_frontend():
@@ -7,7 +16,7 @@ def verify_frontend():
     This script launches a headless browser, navigates to the application,
     and asserts the presence or absence of specific UI components.
     It specifically checks that Cloudflare-related inputs are removed
-    and that OpenRouter inputs and labels are correctly displayed.
+    and that Google AI Studio inputs and labels are correctly displayed.
 
     Raises:
         AssertionError: If any of the UI expectations fail.
@@ -27,21 +36,14 @@ def verify_frontend():
         expect(cf_account_input).not_to_be_visible()
         expect(cf_token_input).not_to_be_visible()
 
-        # Verify OpenRouter input is present and has correct label
-        or_key_input = page.locator("#openrouter-key")
-        expect(or_key_input).to_be_visible()
+        # Verify Google AI Studio input is present and has correct label
+        # The ID in index.html is 'google-key' based on my grep check
+        google_key_input = page.locator("#google-key")
+        expect(google_key_input).to_be_visible()
 
-        # Verify new label text
-        label = page.get_by_text("OpenRouter API Key (All Agents):")
+        # Verify label text
+        label = page.get_by_text("Google AI Studio API Key:")
         expect(label).to_be_visible()
-
-        # Verify new hint text
-        hint = page.get_by_text("Images generated via Flux (schnell) or SDXL on OpenRouter. Fallback to Pollinations.ai.")
-        expect(hint).to_be_visible()
-
-        # Verify Architect model constant in code (indirectly, we can't easily check JS vars from UI without console logs,
-        # but we can check the status log if we trigger something, but that requires a key.
-        # For this visual test, we focus on the UI changes).
 
         # Take screenshot
         page.screenshot(path="verification/ui_check.png")

@@ -1,5 +1,15 @@
 // Layout Engine
+
+/**
+ * The standard width of an A4 canvas at 150dpi (approx).
+ * @constant {number}
+ */
 const CANVAS_WIDTH = 1240;
+
+/**
+ * The standard height of an A4 canvas at 150dpi (approx).
+ * @constant {number}
+ */
 const CANVAS_HEIGHT = 1754;
 
 /**

@@ -4,6 +4,10 @@ import { critiqueImage } from './editor.js';
 import { sleep } from './utils.js';
 
 // SAFETY: 10 Seconds between Artist calls prevents 429 Errors
+/**
+ * Delay in milliseconds between artist API calls to prevent rate limiting.
+ * @constant {number}
+ */
 const RATE_LIMIT_DELAY = 10000;
 
 /**

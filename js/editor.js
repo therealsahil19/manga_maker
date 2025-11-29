@@ -1,6 +1,10 @@
 // Editor Agent
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+/**
+ * The specific Google Gemini model used for critiquing images.
+ * @constant {string}
+ */
 const MODEL_NAME = "gemini-2.5-flash";
 
 /**

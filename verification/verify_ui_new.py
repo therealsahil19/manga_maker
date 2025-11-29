@@ -1,3 +1,12 @@
+"""
+Comprehensive UI Verification for Manga Maker V9.
+
+This module uses Playwright to perform a detailed verification of the Manga Maker V9
+Web Edition user interface. It asserts the presence and visibility of all critical
+components, including configuration inputs, story context fields, and generation
+controls, ensuring the application is ready for user interaction.
+"""
+
 from playwright.sync_api import sync_playwright, expect
 
 def verify_manga_maker_ui():
