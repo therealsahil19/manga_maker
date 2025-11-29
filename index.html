@@ -6,22 +6,30 @@
     <title>Manga Maker V9 - Web Edition</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <script type="importmap">
+    {
+      "imports": {
+        "@google/generative-ai": "https://esm.run/@google/generative-ai",
+        "jszip": "https://esm.run/jszip"
+      }
+    }
+    </script>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Manga Maker V9</h1>
-            <p>AI-Powered Manga Page Generator (Context Aware)</p>
+            <p>AI-Powered Manga Pipeline (Google AI Studio)</p>
         </header>
 
         <main>
             <section class="config-section">
                 <h2>Configuration</h2>
                 <div class="input-group">
-                    <label for="openrouter-key">OpenRouter API Key (All Agents):</label>
-                    <input type="password" id="openrouter-key" placeholder="sk-or-..." required>
+                    <label for="google-key">Google AI Studio API Key:</label>
+                    <input type="password" id="google-key" placeholder="AIzaSy..." required>
                 </div>
-                <p class="hint">Images generated via Flux (schnell) or SDXL on OpenRouter. Fallback to Pollinations.ai.</p>
+                <p class="hint">Uses Gemini 2.5 Pro (Architect), 2.5 Flash Image (Artist), 2.5 Flash (Editor).</p>
             </section>
 
             <section class="context-section">
@@ -34,18 +42,16 @@
                     <label for="context-file">Load Context File (.json):</label>
                     <input type="file" id="context-file" accept=".json">
                 </div>
-                <div class="actions">
-                    <button id="download-context-btn" class="secondary-btn" disabled>Download Updated Context</button>
-                </div>
+                <!-- Context download is now handled via ZIP at the end -->
             </section>
 
             <section class="input-section">
                 <h2>Story Input</h2>
                 <div class="input-group">
                     <label for="scene-text">Chapter Content:</label>
-                    <textarea id="scene-text" rows="10" placeholder="Paste the full chapter text here. The Architect will split it into multiple pages (min 8)."></textarea>
+                    <textarea id="scene-text" rows="10" placeholder="Paste the full chapter text here. The Architect will split it into pages."></textarea>
                 </div>
-                <button id="generate-btn" class="primary-btn">Generate Chapter</button>
+                <button id="generate-btn" class="primary-btn">Generate Chapter (ZIP)</button>
             </section>
 
             <section class="status-section">
@@ -57,9 +63,9 @@
             </section>
 
             <section class="preview-section">
-                <h2>Pages</h2>
+                <h2>Live Preview</h2>
                 <div id="pages-container">
-                    <!-- Canvases will be appended here -->
+                    <!-- HTML Pages will be appended here -->
                 </div>
             </section>
         </main>

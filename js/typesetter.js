@@ -1,72 +1,92 @@
 // Typesetter Agent
-
-import { CanvasSpecs } from './layoutEngine.js';
-
-const BORDER_WIDTH = 5;
+import { CanvasSpecs, calculateLayout } from './layoutEngine.js';
 
 /**
- * Assembles a complete manga page by drawing generated panel images onto a canvas based on the layout coordinates.
- * Handles cropping (aspect ratio fit) and drawing borders for each panel.
+ * Creates an HTML preview of the manga page with text bubbles.
  *
- * @param {Array<{id: number, x: number, y: number, width: number, height: number}>} layoutCoords
- *          - Array of objects defining the position and size of each panel.
- * @param {Object.<number, ImageBitmap|HTMLCanvasElement>} panelImages
- *          - A map of panel IDs to their corresponding image objects (ImageBitmap or Canvas).
- * @returns {Promise<HTMLCanvasElement>}
- *          - A promise that resolves to the assembled HTMLCanvasElement containing the full manga page.
+ * @param {Object} pageData - The page object from the blueprint (layout, panels).
+ * @param {Object} panelImages - Map of panel_id -> Blob.
+ * @returns {HTMLElement} - The DOM element representing the page.
  */
-export async function assemblePage(layoutCoords, panelImages) {
-    const canvas = document.createElement('canvas');
-    canvas.width = CanvasSpecs.width;
-    canvas.height = CanvasSpecs.height;
-    const ctx = canvas.getContext('2d');
+export async function createPageElement(pageData, panelImages) {
+    const layoutCoords = calculateLayout(pageData.layout);
 
-    // Fill white background
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Container
+    const pageDiv = document.createElement('div');
+    pageDiv.className = 'manga-page';
 
-    for (const panel of layoutCoords) {
-        const img = panelImages[panel.id];
-        if (!img) {
-            console.warn(`Missing image for panel ${panel.id}`);
-            continue;
-        }
+    // Helper to find panel data by index or id
+    // layoutEngine returns simple array 0..3
+    // blueprint has panel_id "p1" etc.
+    // We assume blueprint panels are in order matching layout slots.
 
-        // Calculate aspect ratio fit (cover)
-        // Source dimensions
-        const sw = img.width;
-        const sh = img.height;
-        // Target dimensions
-        const tw = panel.width;
-        const th = panel.height;
+    layoutCoords.forEach((coord, index) => {
+        const panelInfo = pageData.panels[index]; // Assuming strict order
+        if (!panelInfo) return;
 
-        const sRatio = sw / sh;
-        const tRatio = tw / th;
+        const blob = panelImages[panelInfo.panel_id];
 
-        let sx, sy, sWidth, sHeight;
+        // Panel Container
+        const panelDiv = document.createElement('div');
+        panelDiv.className = 'panel-container';
 
-        if (sRatio > tRatio) {
-            // Source is wider than target: Crop width
-            sHeight = sh;
-            sWidth = sh * tRatio;
-            sx = (sw - sWidth) / 2;
-            sy = 0;
+        // Convert coords to % for responsiveness
+        const leftPct = (coord.x / CanvasSpecs.width) * 100;
+        const topPct = (coord.y / CanvasSpecs.height) * 100;
+        const widthPct = (coord.width / CanvasSpecs.width) * 100;
+        const heightPct = (coord.height / CanvasSpecs.height) * 100;
+
+        panelDiv.style.left = `${leftPct}%`;
+        panelDiv.style.top = `${topPct}%`;
+        panelDiv.style.width = `${widthPct}%`;
+        panelDiv.style.height = `${heightPct}%`;
+
+        // Image
+        if (blob) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(blob);
+            panelDiv.appendChild(img);
         } else {
-            // Source is taller than target: Crop height
-            sWidth = sw;
-            sHeight = sw / tRatio;
-            sx = 0;
-            sy = (sh - sHeight) / 2;
+            panelDiv.style.background = "#ccc";
+            panelDiv.textContent = "Error";
         }
 
-        // Draw Image
-        ctx.drawImage(img, sx, sy, sWidth, sHeight, panel.x, panel.y, tw, th);
+        // Bubbles
+        if (panelInfo.dialogue_bubbles) {
+            panelInfo.dialogue_bubbles.forEach(bubble => {
+                const bubbleDiv = document.createElement('div');
+                bubbleDiv.className = 'bubble';
+                bubbleDiv.textContent = bubble.text;
 
-        // Draw Border
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = BORDER_WIDTH;
-        ctx.strokeRect(panel.x, panel.y, tw, th);
-    }
+                // Position logic
+                // Simple mapping: top_left -> top: 10%, left: 10%
+                switch (bubble.position) {
+                    case 'top_left':
+                        bubbleDiv.style.top = '5%'; bubbleDiv.style.left = '5%'; break;
+                    case 'top_right':
+                        bubbleDiv.style.top = '5%'; bubbleDiv.style.right = '5%'; break;
+                    case 'bottom_left':
+                        bubbleDiv.style.bottom = '5%'; bubbleDiv.style.left = '5%'; break;
+                    case 'bottom_right':
+                        bubbleDiv.style.bottom = '5%'; bubbleDiv.style.right = '5%'; break;
+                    case 'center':
+                        bubbleDiv.style.top = '50%'; bubbleDiv.style.left = '50%';
+                        bubbleDiv.style.transform = 'translate(-50%, -50%)';
+                        break;
+                    default:
+                        bubbleDiv.style.top = '10%'; bubbleDiv.style.left = '10%';
+                }
 
-    return canvas;
+                // Append bubble to the *Page* (so it can overlay borders) or *Panel*?
+                // Usually bubbles can break borders.
+                // But relative positioning is easier inside panel.
+                // Let's put inside panel for now to stick to the image.
+                panelDiv.appendChild(bubbleDiv);
+            });
+        }
+
+        pageDiv.appendChild(panelDiv);
+    });
+
+    return pageDiv;
 }

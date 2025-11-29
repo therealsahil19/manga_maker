@@ -1,119 +1,53 @@
-// Editor Agent (Vision)
+// Editor Agent
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const VISION_MODEL = "meta-llama/llama-3.2-11b-vision-instruct:free";
+const MODEL_NAME = "gemini-2.5-flash";
 
 /**
- * Converts a Blob object to a Base64 data URL string.
- * This is necessary for sending image data to the Vision API.
- *
- * @param {Blob} blob - The image blob to convert.
- * @returns {Promise<string>} - A promise that resolves to the Base64 data URL.
+ * Converts a Blob to a GenerativePart object (Base64).
  */
-function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
+async function fileToGenerativePart(file) {
+    const base64EncodedDataPromise = new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(file);
     });
+    return {
+        inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
+    };
 }
 
 /**
- * Parses and cleans the JSON response from the LLM.
- * Attempts to extract JSON if the response is wrapped in text or markdown.
+ * Critiques an image against a prompt.
  *
- * @param {string} responseText - The raw text response from the LLM.
- * @returns {Object|null} - The parsed JSON object, or null if parsing fails.
+ * @param {string} apiKey - The Google AI API key.
+ * @param {Blob} imageBlob - The generated image.
+ * @param {string} originalPrompt - The prompt used.
+ * @returns {Promise<{score: number, advice: string}>}
  */
-function janitor(responseText) {
+export async function critiqueImage(apiKey, imageBlob, originalPrompt) {
     try {
-        return JSON.parse(responseText);
-    } catch (e) {
-        const start = responseText.indexOf('{');
-        const end = responseText.lastIndexOf('}') + 1;
-        if (start !== -1 && end !== -1) {
-            try {
-                return JSON.parse(responseText.substring(start, end));
-            } catch (e2) {
-                return null;
-            }
-        }
-        return null;
-    }
-}
-
-/**
- * Critiques a generated image against its original description using a Vision LLM.
- * Determines if the image passes quality standards or if it needs regeneration with an improved prompt.
- *
- * @param {Blob} imageBlob - The generated image to be critiqued.
- * @param {string} originalPrompt - The description used to generate the image.
- * @param {string} apiKey - The OpenRouter API key.
- * @returns {Promise<{pass: boolean, reason: string, improved_prompt: string|null}>}
- *          - A promise that resolves to an object containing the pass status, reasoning, and optionally an improved prompt.
- *          Returns a "pass" result in case of errors to avoid blocking the workflow ("fail open").
- */
-export async function critiqueImage(imageBlob, originalPrompt, apiKey) {
-    try {
-        const base64Image = await blobToBase64(imageBlob);
-
-        const systemPrompt = `
-You are 'The Editor', an expert manga art director.
-Your goal is to critique a generated manga panel against its description.
-If the image looks broken, low quality, or completely ignores the description, you must REJECT it and provide a better prompt.
-If it is acceptable, APPROVE it.
-
-Output JSON only:
-{
-  "pass": true | false,
-  "reason": "Why it passed or failed.",
-  "improved_prompt": "If failed, provide a significantly better prompt to fix the issues. If passed, return null."
-}
-`;
-
-        const userContent = [
-            { type: "text", text: `Original Description: "${originalPrompt}"\n\nDoes this image match the description and high-quality manga standards?` },
-            { type: "image_url", image_url: { url: base64Image } }
-        ];
-
-        const payload = {
-            model: VISION_MODEL,
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userContent }
-            ],
-            temperature: 0.5
-        };
-
-        const response = await fetch(API_URL, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": window.location.href,
-                "X-Title": "Manga Maker V9 Web"
-            },
-            body: JSON.stringify(payload)
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+            model: MODEL_NAME,
+            generationConfig: { responseMimeType: "application/json" }
         });
 
-        if (!response.ok) {
-            console.warn(`Editor API Error: ${response.status}`);
-            return { pass: true, reason: "API Error, skipping critique." }; // Fail open
-        }
+        const imagePart = await fileToGenerativePart(imageBlob);
 
-        const result = await response.json();
-        const content = result.choices[0].message.content;
-        const critique = janitor(content);
+        const prompt = `
+        Compare this generated image to the prompt: "${originalPrompt}".
+        1. Is the action correct?
+        2. Is the style consistent (Manga, B&W)?
 
-        if (!critique) {
-            return { pass: true, reason: "Parsing error, skipping critique." };
-        }
+        Output JSON: { "score": (1-10), "advice": "Short sentence on how to fix it if score < 7" }
+        `;
 
-        return critique;
-
-    } catch (err) {
-        console.error("Editor Exception:", err);
-        return { pass: true, reason: "Exception, skipping critique." };
+        const result = await model.generateContent([prompt, imagePart]);
+        const text = result.response.text();
+        return JSON.parse(text.replace(/```json|```/g, ''));
+    } catch (e) {
+        console.warn("Editor critique failed, passing by default.", e);
+        return { score: 10, advice: "" }; // Fail open
     }
 }

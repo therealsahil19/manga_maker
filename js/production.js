@@ -1,0 +1,82 @@
+// Production Engine
+import { generatePanelImage } from './artist.js';
+import { critiqueImage } from './editor.js';
+import { sleep } from './utils.js';
+
+// SAFETY: 10 Seconds between Artist calls prevents 429 Errors
+const RATE_LIMIT_DELAY = 10000;
+
+/**
+ * Runs the main production loop.
+ *
+ * @param {Object} blueprint - The chapter blueprint from Architect.
+ * @param {string} apiKey - The Google AI API key.
+ * @param {Object} zipInstance - The JSZip instance to populate.
+ * @param {Function} log - Callback for status updates.
+ * @param {Function} onPageComplete - Callback when a page is ready (passed page data & images).
+ */
+export async function runProductionLoop(blueprint, apiKey, zipInstance, log, onPageComplete) {
+    const styleGuide = blueprint.local_style_guide;
+    const chapterTitle = blueprint.chapter_title || "Chapter";
+
+    // Save Blueprint to ZIP
+    zipInstance.file("blueprint.json", JSON.stringify(blueprint, null, 2));
+
+    for (const page of blueprint.pages) {
+        log(`\n--- Working on Page ${page.page_number} ---`);
+        const pageImages = {}; // Map panel_id -> Blob
+
+        for (const panel of page.panels) {
+            log(`Generating Panel ${panel.panel_id}...`);
+
+            // 1. Construct Consistency Prompt
+            const fullPrompt = `
+                [STYLE GUIDE]: ${JSON.stringify(styleGuide)}
+                [SCENE ACTION]: ${panel.visual_prompt}
+                [FORMAT]: Manga, High Contrast Black and White, Detailed Lineart.
+                [CONSTRAINT]: No text in image.
+            `;
+
+            // 2. Draft
+            let imageBlob = await generatePanelImage(apiKey, fullPrompt, log);
+
+            // 3. Critique
+            log("  > Editor: Critiquing...");
+            const critique = await critiqueImage(apiKey, imageBlob, fullPrompt);
+            log(`  > Score: ${critique.score}/10`);
+
+            // 4. Refine (Conditional)
+            if (critique.score < 7) {
+                log(`  > Refining... Advice: ${critique.advice}`);
+                log(`  > Cooling down (${RATE_LIMIT_DELAY/1000}s)...`);
+                await sleep(RATE_LIMIT_DELAY);
+
+                const refinedPrompt = `${fullPrompt} (IMPORTANT FIX: ${critique.advice})`;
+                imageBlob = await generatePanelImage(apiKey, refinedPrompt, log);
+            }
+
+            // Store result
+            pageImages[panel.panel_id] = imageBlob;
+
+            // Save to ZIP
+            const filename = `Page_${page.page_number}_Panel_${panel.panel_id}.png`;
+            const folder = zipInstance.folder(`Chapter_${blueprint.chapter_title || "X"}/Page_${page.page_number}`);
+            folder.file(filename, imageBlob);
+
+            // 5. Rate Limit Wait
+            if (page.panels.indexOf(panel) < page.panels.length - 1) {
+                log(`  > Cooling down (${RATE_LIMIT_DELAY/1000}s)...`);
+                await sleep(RATE_LIMIT_DELAY);
+            }
+        }
+
+        // Trigger Page Assembly for UI
+        if (onPageComplete) {
+            await onPageComplete(page, pageImages);
+        }
+
+        // Rate limit between pages
+        log(`  > Page Complete. Cooling down...`);
+        await sleep(RATE_LIMIT_DELAY);
+    }
+}
