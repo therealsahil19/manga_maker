@@ -5,6 +5,19 @@ import { createPageElement } from './typesetter.js';
 import { ContextManager } from './contextManager.js';
 import JSZip from 'jszip';
 
+/**
+ * References to DOM elements used in the application.
+ * @type {Object}
+ * @property {HTMLInputElement} apiKey - The input field for the Google AI API key.
+ * @property {HTMLInputElement} chapterNum - The input field for the current chapter number.
+ * @property {HTMLInputElement} contextFile - The file input for loading existing context JSON.
+ * @property {HTMLTextAreaElement} sceneText - The textarea for entering the scene description.
+ * @property {HTMLButtonElement} generateBtn - The button to trigger the generation process.
+ * @property {HTMLDivElement} statusLog - The container for displaying status messages.
+ * @property {HTMLDivElement} pagesContainer - The container where generated manga pages are appended.
+ * @property {HTMLDivElement} progressBarContainer - The container for the progress bar.
+ * @property {HTMLDivElement} progressBar - The progress bar element itself.
+ */
 const DOM = {
     apiKey: document.getElementById('google-key'),
     chapterNum: document.getElementById('chapter-num'),
@@ -17,6 +30,10 @@ const DOM = {
     progressBar: document.getElementById('progress-bar')
 };
 
+/**
+ * The context manager instance responsible for tracking story state.
+ * @type {ContextManager}
+ */
 const contextManager = new ContextManager();
 
 /**
@@ -54,6 +71,7 @@ function validateInputs() {
 /**
  * Event listener for loading context files.
  * Parses the uploaded JSON file and loads it into the ContextManager.
+ * If successful, updates the chapter number input based on the loaded context.
  */
 DOM.contextFile.addEventListener('change', (e) => {
     const file = e.target.files[0];

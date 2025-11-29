@@ -2,6 +2,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { retryOperation } from './utils.js';
 
+/**
+ * The specific Google Gemini model used for image generation.
+ * @constant {string}
+ */
 const MODEL_NAME = "gemini-2.5-flash-image";
 
 /**

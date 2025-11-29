@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Unit tests for the `js/utils.js` module.
+ * This file contains a comprehensive suite of test cases to verify the robustness
+ * of utility functions, primarily focusing on `extractImageUrl`.
+ */
 
 import { extractImageUrl } from '../../js/utils.js';
 
@@ -7,6 +12,7 @@ import { extractImageUrl } from '../../js/utils.js';
  * including Markdown, raw URLs, and nested parentheses, while handling edge cases
  * like trailing punctuation and wrapped characters.
  *
+ * @async
  * @returns {Promise<void>} - A promise that resolves when all tests have been executed.
  */
 async function runTest() {
