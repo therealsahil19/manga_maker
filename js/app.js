@@ -27,6 +27,8 @@ const contextManager = new ContextManager();
 
 /**
  * Appends a message to the status log with a timestamp.
+ * Automatically scrolls to the bottom of the log.
+ *
  * @param {string} message - The message to log.
  */
 function log(message) {
@@ -36,7 +38,8 @@ function log(message) {
 }
 
 /**
- * Updates the progress bar width.
+ * Updates the progress bar width based on the percentage provided.
+ *
  * @param {number} percent - The percentage (0-100) of progress.
  */
 function updateProgress(percent) {
@@ -44,7 +47,9 @@ function updateProgress(percent) {
 }
 
 /**
- * Validates the required inputs before generation.
+ * Validates the required user inputs before starting generation.
+ * Checks for the presence of an API key and scene text.
+ *
  * @returns {string|null} - Returns an error message string if invalid, or null if valid.
  */
 function validateInputs() {
@@ -54,6 +59,11 @@ function validateInputs() {
 }
 
 // Event: Load Context
+/**
+ * Event listener for uploading a context file.
+ * Reads and parses the JSON file, then loads it into the ContextManager.
+ * Automatically updates the chapter number input based on the loaded context.
+ */
 DOM.contextFile.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -79,6 +89,10 @@ DOM.contextFile.addEventListener('change', (e) => {
 });
 
 // Event: Download Context
+/**
+ * Event listener for downloading the current context.
+ * Creates a JSON blob of the current context data and triggers a download.
+ */
 DOM.downloadContextBtn.addEventListener('click', () => {
     const data = contextManager.getContextData();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -91,6 +105,19 @@ DOM.downloadContextBtn.addEventListener('click', () => {
 });
 
 // Event: Generate
+/**
+ * Main event listener for the Generate button.
+ * Orchestrates the entire chapter generation process:
+ * 1. Validates inputs.
+ * 2. Architect Agent: Generates a blueprint for the chapter.
+ * 3. Iterates through each page in the blueprint:
+ *    a. Calculates layout coordinates.
+ *    b. Artist Agent: Generates panel images (with critiques).
+ *    c. Typesetter Agent: Assembles the final page canvas.
+ *    d. Displays the page and offers a download button.
+ * 4. Updates the story context with the new chapter summary.
+ * 5. Handles errors and updates the UI status log.
+ */
 DOM.generateBtn.addEventListener('click', async () => {
     const error = validateInputs();
     if (error) {

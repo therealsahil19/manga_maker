@@ -6,8 +6,8 @@ A static web application for generating AI-powered manga pages directly in the b
 
 -   **Zero Backend**: Runs entirely in the browser using JavaScript and direct API calls. No server-side infrastructure is required.
 -   **Multi-Agent Workflow**:
-    -   **Architect**: Uses OpenRouter (Llama 3.3) to analyze text and design page layouts (Splash, Grid, Cinematic).
-    -   **Artist**: Uses Cloudflare Workers AI (Stable Diffusion XL) or Pollinations.ai to generate high-quality panel images with a consistent Seinen style.
+    -   **Architect**: Uses OpenRouter (TNG Chimera or Gemini Flash Lite) to analyze text and design page layouts (Splash, Grid, Cinematic).
+    -   **Artist**: Uses OpenRouter (Flux Schnell or SDXL) or Pollinations.ai to generate high-quality panel images with a consistent Seinen style.
     -   **Editor**: Uses Llama 3.2 Vision to critique generated images and request retries if they don't match the description.
     -   **Typesetter**: Assembles the generated panels into a final high-resolution A4 manga page.
     -   **Context Manager**: Maintains story continuity across chapters using a rolling buffer of summaries.
@@ -22,10 +22,8 @@ A static web application for generating AI-powered manga pages directly in the b
     ```
 
 2.  **API Keys**:
-    You will need the following API keys to use the full functionality:
-    -   **OpenRouter API Key**: Required for the Architect (layout) and Editor (critique) agents.
-    -   **Cloudflare Account ID & API Token**: Required for the Artist agent (Cloudflare Workers AI).
-        -   *Note*: If Cloudflare credentials are not provided, the Artist will fall back to using Pollinations.ai (free, slower, no auth required).
+    You will need the following API key to use the full functionality:
+    -   **OpenRouter API Key**: Required for the Architect (layout), Artist (drawing), and Editor (critique) agents.
 
 ## Usage
 
@@ -38,7 +36,6 @@ A static web application for generating AI-powered manga pages directly in the b
 
 2.  **Configuration**:
     -   Enter your **OpenRouter API Key** in the designated field.
-    -   (Optional) Enter your **Cloudflare Account ID** and **Token**.
 
 3.  **Generate a Chapter**:
     -   **Chapter Number**: Set the current chapter number.
@@ -59,18 +56,25 @@ The codebase is organized into modular JavaScript files, each representing a spe
 ### `js/`
 -   **`app.js`**: The main controller. Handles DOM interaction, event listeners, and orchestrates the flow between agents.
 -   **`architect.js`**: The Layout Strategist. Sends the chapter text to an LLM to generate a JSON "blueprint" of pages and panels.
--   **`artist.js`**: The Illustrator. Handles image generation requests to Cloudflare or Pollinations, including retry logic and interfacing with the Editor for critiques.
+-   **`artist.js`**: The Illustrator. Handles image generation requests to OpenRouter or Pollinations, including retry logic and interfacing with the Editor for critiques.
 -   **`editor.js`**: The Art Director. Uses a Vision LLM to inspect generated images and verify they match the prompt.
 -   **`layoutEngine.js`**: Calculates the pixel coordinates and dimensions for panels based on abstract layout types (Splash, Grid, Cinematic).
 -   **`typesetter.js`**: Composites individual panel images into a single canvas with borders and formatting.
 -   **`contextManager.js`**: Manages the persistent state of the story (current chapter, global summary, recent history) to ensure continuity.
+-   **`utils.js`**: Shared utility functions for retries, delays, and text parsing.
 
-### `css/`
--   **`style.css`**: Contains styles for the application UI.
+### `verification/`
+-   **`tests/`**: Contains unit tests (e.g., `test_utils.js`).
+-   **`verify_ui.py`**: A Python script using Playwright to verify the frontend UI components.
 
 ## Development
 
 This project uses vanilla JavaScript with ES Modules. No build tools (Webpack, Vite, etc.) are required for development.
 
--   **Documentation**: All public functions and classes are documented with JSDoc.
--   **Testing**: Currently, manual testing via the browser is the primary method. Ensure all API keys are valid before testing generation flows.
+-   **Documentation**: All public functions and classes are thoroughly documented with JSDoc (JavaScript) or Google Style Docstrings (Python).
+-   **Testing**: Unit tests can be found in `verification/tests/`. To run the Python verification script, ensure you have Playwright installed and the app is running on localhost.
+
+```bash
+# Example for running the UI verification
+python3 verification/verify_ui.py
+```

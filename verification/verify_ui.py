@@ -1,6 +1,17 @@
 from playwright.sync_api import sync_playwright, expect
 
 def verify_frontend():
+    """
+    Verifies the frontend user interface elements using Playwright.
+
+    This script launches a headless browser, navigates to the application,
+    and asserts the presence or absence of specific UI components.
+    It specifically checks that Cloudflare-related inputs are removed
+    and that OpenRouter inputs and labels are correctly displayed.
+
+    Raises:
+        AssertionError: If any of the UI expectations fail.
+    """
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
