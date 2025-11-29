@@ -19,16 +19,31 @@ const DOM = {
 
 const contextManager = new ContextManager();
 
+/**
+ * Appends a message to the status log in the UI.
+ *
+ * @param {string} message - The message to display.
+ */
 function log(message) {
     const timestamp = new Date().toLocaleTimeString();
     DOM.statusLog.textContent += `[${timestamp}] ${message}\n`;
     DOM.statusLog.scrollTop = DOM.statusLog.scrollHeight;
 }
 
+/**
+ * Updates the visual progress bar.
+ *
+ * @param {number} percent - The percentage of completion (0-100).
+ */
 function updateProgress(percent) {
     DOM.progressBar.style.width = `${percent}%`;
 }
 
+/**
+ * Validates the required user inputs before starting generation.
+ *
+ * @returns {string|null} - An error message if validation fails, or null if valid.
+ */
 function validateInputs() {
     if (!DOM.apiKey.value) return "Missing Google API Key";
     if (!DOM.sceneText.value.trim()) return "Missing Scene Text";
@@ -36,6 +51,10 @@ function validateInputs() {
 }
 
 // Context Loading
+/**
+ * Event listener for loading context files.
+ * Parses the uploaded JSON file and loads it into the ContextManager.
+ */
 DOM.contextFile.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -56,6 +75,16 @@ DOM.contextFile.addEventListener('change', (e) => {
 });
 
 // Main Generation Logic
+/**
+ * Event listener for the Generate button.
+ * Orchestrates the entire manga generation pipeline:
+ * 1. Validates inputs.
+ * 2. Initializes UI for generation.
+ * 3. Calls Architect to generate the blueprint.
+ * 4. Updates context.
+ * 5. Calls Production Loop to generate images and pages.
+ * 6. Packages results into a ZIP file for download.
+ */
 DOM.generateBtn.addEventListener('click', async () => {
     const error = validateInputs();
     if (error) { log(`Error: ${error}`); return; }

@@ -57,6 +57,7 @@ The codebase is organized into modular JavaScript files, each representing a spe
 -   **`app.js`**: The main controller. Handles DOM interaction, event listeners, and orchestrates the flow between agents.
 -   **`architect.js`**: The Layout Strategist. Sends the chapter text to an LLM to generate a JSON "blueprint" of pages and panels.
 -   **`artist.js`**: The Illustrator. Handles image generation requests to OpenRouter or Pollinations, including retry logic and interfacing with the Editor for critiques.
+-   **`production.js`**: The Production Engine. Loops through the blueprint, coordinating the Artist and Editor to generate and refine images, respecting rate limits.
 -   **`editor.js`**: The Art Director. Uses a Vision LLM to inspect generated images and verify they match the prompt.
 -   **`layoutEngine.js`**: Calculates the pixel coordinates and dimensions for panels based on abstract layout types (Splash, Grid, Cinematic).
 -   **`typesetter.js`**: Composites individual panel images into a single canvas with borders and formatting.
@@ -66,6 +67,7 @@ The codebase is organized into modular JavaScript files, each representing a spe
 ### `verification/`
 -   **`tests/`**: Contains unit tests (e.g., `test_utils.js`).
 -   **`verify_ui.py`**: A Python script using Playwright to verify the frontend UI components.
+-   **`verify_ui_new.py`**: An updated Python script using Playwright for more comprehensive UI verification.
 
 ## Development
 

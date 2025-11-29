@@ -1,6 +1,17 @@
 from playwright.sync_api import sync_playwright, expect
 
 def verify_manga_maker_ui():
+    """
+    Verifies the core UI components of the Manga Maker V9 Web Edition.
+
+    This function uses Playwright to launch a headless browser and inspect the
+    DOM for key elements such as the title, configuration fields, story context
+    inputs, and the generation button. It also checks for the presence of the
+    import map script, which is crucial for ES module loading.
+
+    Raises:
+        AssertionError: If any UI element is missing or not visible.
+    """
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
