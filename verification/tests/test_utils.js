@@ -45,6 +45,16 @@ async function runTest() {
             name: "Raw URL with trailing punctuation",
             input: "Check this: http://example.com/image.png.",
             expected: "http://example.com/image.png"
+        },
+        {
+            name: "URL in angle brackets",
+            input: "Here is the link: <http://example.com/image.png>",
+            expected: "http://example.com/image.png"
+        },
+        {
+            name: "URL in quotes",
+            input: 'Here is the link: "http://example.com/image.png"',
+            expected: "http://example.com/image.png"
         }
     ];
 
