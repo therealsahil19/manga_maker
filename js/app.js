@@ -1,20 +1,14 @@
 // Main Controller
-
-import { getChapterBlueprint } from './architect.js';
-import { calculateLayout } from './layoutEngine.js';
-import { generatePagePanels } from './artist.js';
-import { assemblePage } from './typesetter.js';
+import { generateBlueprint } from './architect.js';
+import { runProductionLoop } from './production.js';
+import { createPageElement } from './typesetter.js';
 import { ContextManager } from './contextManager.js';
+import JSZip from 'jszip';
 
-/**
- * DOM Elements Cache
- * @type {Object.<string, HTMLElement>}
- */
 const DOM = {
-    orKey: document.getElementById('openrouter-key'),
+    apiKey: document.getElementById('google-key'),
     chapterNum: document.getElementById('chapter-num'),
     contextFile: document.getElementById('context-file'),
-    downloadContextBtn: document.getElementById('download-context-btn'),
     sceneText: document.getElementById('scene-text'),
     generateBtn: document.getElementById('generate-btn'),
     statusLog: document.getElementById('status-log'),
@@ -25,192 +19,114 @@ const DOM = {
 
 const contextManager = new ContextManager();
 
-/**
- * Appends a message to the status log with a timestamp.
- * Automatically scrolls to the bottom of the log.
- *
- * @param {string} message - The message to log.
- */
 function log(message) {
     const timestamp = new Date().toLocaleTimeString();
     DOM.statusLog.textContent += `[${timestamp}] ${message}\n`;
     DOM.statusLog.scrollTop = DOM.statusLog.scrollHeight;
 }
 
-/**
- * Updates the progress bar width based on the percentage provided.
- *
- * @param {number} percent - The percentage (0-100) of progress.
- */
 function updateProgress(percent) {
     DOM.progressBar.style.width = `${percent}%`;
 }
 
-/**
- * Validates the required user inputs before starting generation.
- * Checks for the presence of an API key and scene text.
- *
- * @returns {string|null} - Returns an error message string if invalid, or null if valid.
- */
 function validateInputs() {
-    if (!DOM.orKey.value) return "Missing OpenRouter API Key";
+    if (!DOM.apiKey.value) return "Missing Google API Key";
     if (!DOM.sceneText.value.trim()) return "Missing Scene Text";
     return null;
 }
 
-// Event: Load Context
-/**
- * Event listener for uploading a context file.
- * Reads and parses the JSON file, then loads it into the ContextManager.
- * Automatically updates the chapter number input based on the loaded context.
- */
+// Context Loading
 DOM.contextFile.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
         try {
             const json = JSON.parse(event.target.result);
             contextManager.loadContext(json);
-
-            // Auto-update chapter number
             if (contextManager.context.currentChapter) {
                 DOM.chapterNum.value = contextManager.context.currentChapter + 1;
             }
-
             log("Context loaded successfully.");
         } catch (err) {
             log("Error parsing context file.");
-            console.error(err);
         }
     };
     reader.readAsText(file);
 });
 
-// Event: Download Context
-/**
- * Event listener for downloading the current context.
- * Creates a JSON blob of the current context data and triggers a download.
- */
-DOM.downloadContextBtn.addEventListener('click', () => {
-    const data = contextManager.getContextData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `story_context_ch${data.currentChapter}.json`;
-    link.click();
-});
-
-// Event: Generate
-/**
- * Main event listener for the Generate button.
- * Orchestrates the entire chapter generation process:
- * 1. Validates inputs.
- * 2. Architect Agent: Generates a blueprint for the chapter.
- * 3. Iterates through each page in the blueprint:
- *    a. Calculates layout coordinates.
- *    b. Artist Agent: Generates panel images (with critiques).
- *    c. Typesetter Agent: Assembles the final page canvas.
- *    d. Displays the page and offers a download button.
- * 4. Updates the story context with the new chapter summary.
- * 5. Handles errors and updates the UI status log.
- */
+// Main Generation Logic
 DOM.generateBtn.addEventListener('click', async () => {
     const error = validateInputs();
-    if (error) {
-        log(`Error: ${error}`);
-        return;
-    }
+    if (error) { log(`Error: ${error}`); return; }
 
     DOM.generateBtn.disabled = true;
-    DOM.pagesContainer.innerHTML = ''; // Clear previous pages
+    DOM.pagesContainer.innerHTML = '';
     DOM.statusLog.textContent = "";
     DOM.progressBarContainer.style.display = "block";
     updateProgress(0);
 
-    log("Starting Chapter Generation...");
+    log("Starting Production Pipeline...");
 
     try {
-        const contextSummary = contextManager.getContextSummary();
+        const apiKey = DOM.apiKey.value;
         const chapterText = DOM.sceneText.value;
-        const currentChapter = DOM.chapterNum.value;
+        const currentContext = contextManager.getContextData(); // Get full object
 
-        // 1. Architect: Get Blueprint
-        log("Architect: Analyzing chapter and designing pages...");
-        const blueprint = await getChapterBlueprint(chapterText, contextSummary, DOM.orKey.value, (msg) => log(msg));
+        // 1. Architect Phase
+        log("Phase 1: Architect (Blueprint Generation)...");
+        const blueprint = await generateBlueprint(apiKey, chapterText, currentContext, log);
 
-        const pageCount = blueprint.pages.length;
-        log(`Architect: Planned ${pageCount} pages.`);
+        log(`Blueprint created: ${blueprint.pages.length} pages planned.`);
 
-        // 2. Loop through pages
-        for (let i = 0; i < pageCount; i++) {
-            const pageData = blueprint.pages[i];
-            log(`\n--- Processing Page ${pageData.pageId} / ${pageCount} ---`);
-            log(`Layout: ${pageData.layout}`);
-
-            // Layout Engine
-            const layoutCoords = calculateLayout(pageData.layout);
-
-            // Merge descriptions
-            const panelsData = layoutCoords.map(coord => {
-                const panelDesc = pageData.panels.find(p => p.id === coord.id);
-                return {
-                    ...coord,
-                    description: panelDesc ? panelDesc.description : "A generic scene."
-                };
-            });
-
-            // Artist (Generate Panels)
-            const panelImages = await generatePagePanels(
-                panelsData,
-                DOM.orKey.value,
-                (msg) => log(msg)
-            );
-
-            // Typesetter (Assemble)
-            log("Typesetter: Assembling page...");
-            const canvas = await assemblePage(panelsData, panelImages);
-
-            // Add to DOM
-            const pageWrapper = document.createElement('div');
-            pageWrapper.className = 'page-wrapper';
-            pageWrapper.style.marginBottom = '20px';
-
-            const title = document.createElement('h3');
-            title.textContent = `Page ${pageData.pageId}`;
-            pageWrapper.appendChild(title);
-
-            pageWrapper.appendChild(canvas);
-
-            // Download Button for this page
-            const btn = document.createElement('button');
-            btn.textContent = "Download Page";
-            btn.className = "secondary-btn";
-            btn.style.marginTop = "10px";
-            btn.onclick = () => {
-                const link = document.createElement('a');
-                link.download = `chapter_${currentChapter}_page_${pageData.pageId}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-            };
-            pageWrapper.appendChild(btn);
-
-            DOM.pagesContainer.appendChild(pageWrapper);
-
-            // Update Progress
-            updateProgress(((i + 1) / pageCount) * 100);
+        // Update Context immediately in memory
+        if (blueprint.new_global_context) {
+            // We'll update the internal manager but save to ZIP later
+             // Assuming simple append or replace logic in manager
+             // For now we just trust the Architect's output string as the summary
+             contextManager.updateContext(DOM.chapterNum.value, blueprint.new_global_context);
         }
 
-        // 3. Update Context
-        log("\nUpdating Story Context...");
-        contextManager.updateContext(currentChapter, blueprint.chapterSummary);
-        DOM.downloadContextBtn.disabled = false;
+        // 2. Production Phase
+        const zip = new JSZip();
 
-        log("Chapter Complete! Don't forget to download the updated context.");
-        alert("Generation Complete. Please download your updated context file.");
+        // Add updated context to ZIP
+        const newContextData = contextManager.getContextData();
+        zip.file(`context_updated_ch${DOM.chapterNum.value}.json`, JSON.stringify(newContextData, null, 2));
+
+        log("Phase 2: Production (Image Generation)...");
+
+        let pagesCompleted = 0;
+        const totalPages = blueprint.pages.length;
+
+        await runProductionLoop(
+            blueprint,
+            apiKey,
+            zip,
+            log,
+            async (pageData, pageImages) => {
+                // On Page Complete (Typesetter)
+                log(`  > Assembling Page ${pageData.page_number} preview...`);
+                const pageEl = await createPageElement(pageData, pageImages);
+                DOM.pagesContainer.appendChild(pageEl);
+
+                pagesCompleted++;
+                updateProgress((pagesCompleted / totalPages) * 100);
+            }
+        );
+
+        // 3. Finalize
+        log("Phase 3: Packaging...");
+        const content = await zip.generateAsync({ type: "blob" });
+
+        // Trigger Download
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(content);
+        link.download = `Manga_Chapter_${DOM.chapterNum.value}.zip`;
+        link.click();
+
+        log("Done! Download started.");
+        alert("Chapter Generation Complete! Check your downloads.");
 
     } catch (err) {
         console.error(err);
